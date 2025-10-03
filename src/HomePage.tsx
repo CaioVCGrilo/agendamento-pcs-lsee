@@ -4,13 +4,28 @@ import React, { useEffect, useState } from 'react';
 import FormularioAgendamento from './components/FormularioAgendamento';
 import './App.css';
 
+// Função utilitária para calcular a data de término
+const calcularDataTermino = (dataInicioStr: string, diasNecessarios: number): string => {
+    // 1. Converte a string YYYY-MM-DD para um objeto Date
+    const data = new Date(dataInicioStr + 'T00:00:00'); // Adiciona T00:00:00 para evitar problemas de fuso horário
+
+    // 2. Adiciona o número de dias. Subtrai 1 porque o dia de início já conta.
+    data.setDate(data.getDate() + (diasNecessarios - 1));
+
+    // 3. Formata para o padrão DD/MM/YYYY
+    const dia = String(data.getDate()).padStart(2, '0');
+    const mes = String(data.getMonth() + 1).padStart(2, '0');
+    const ano = data.getFullYear();
+
+    return `${dia}/${mes}/${ano}`;
+};
+
 interface Agendamento {
     id: number;
     data_inicio: string;
     dias_necessarios: number;
     pc_numero: string;
     agendado_por: string;
-    // O PIN não está na interface do front-end por questões de segurança
 }
 
 export default function HomePage() {
@@ -33,7 +48,6 @@ export default function HomePage() {
     };
 
     const handleCancelamento = async (id: number) => {
-        // 1. Solicita o PIN ao usuário
         const pinDigitado = prompt("Para cancelar, digite o PIN de liberação:");
 
         if (!pinDigitado) {
@@ -41,27 +55,23 @@ export default function HomePage() {
             return;
         }
 
-        // 2. Envia a requisição DELETE para a API
         try {
             const response = await fetch(`/api/agendamentos?id=${id}`, {
                 method: 'DELETE',
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({ pinDigitado }), // O PIN é enviado no corpo
+                body: JSON.stringify({ pinDigitado }),
             });
 
             const result = await response.json();
 
             if (response.ok) {
-                // 3. Sucesso: recarrega a lista
                 alert(`Agendamento ${id} cancelado com sucesso!`);
                 fetchAgendamentos();
-            } else if (response.status === 403) {
-                // 4. PIN Incorreto (Erro 403 retornado pela API)
-                alert(`Falha no Cancelamento: ${result.error || 'PIN incorreto.'}`);
+            } else if (response.status === 403 || response.status === 404) {
+                alert(`Falha no Cancelamento: ${result.error || 'PIN ou ID incorreto.'}`);
             } else {
-                // 5. Outros erros (400, 500, 503)
                 alert(`Erro ao cancelar: ${result.error || 'Erro desconhecido.'}`);
             }
 
@@ -92,7 +102,9 @@ export default function HomePage() {
                 </header>
                 <div className="content-section">
                     <FormularioAgendamento onAgendamentoSucesso={fetchAgendamentos} />
+
                     <h2 className="section-title">Agendamentos Existentes</h2>
+
                     {loading ? (
                         <p>Carregando agendamentos...</p>
                     ) : (
@@ -100,19 +112,28 @@ export default function HomePage() {
                             <table className="agendamentos-table">
                                 <thead>
                                 <tr>
-                                    <th>Data Início</th>
-                                    <th>Dias Necessários</th>
+                                    <th>Início</th> {/* Simplificado */}
+                                    <th>Término</th> {/* Novo título */}
                                     <th>Nº PC</th>
                                     <th>Agendado por</th>
                                     <th>Ação</th>
                                 </tr>
                                 </thead>
                                 <tbody>
-                                {agendamentos.map((agendamento) => (
-                                    <tr key={agendamento.id}>
-                                        <td>{agendamento.data_inicio}</td>
-                                        <td>{agendamento.dias_necessarios}</td>
-                                        <td>
+                                {agendamentos.map((agendamento) => {
+                                    // Formata a data de início para exibição
+                                    const dataInicioFormatada = agendamento.data_inicio ? new Date(agendamento.data_inicio).toLocaleDateString('pt-BR', {timeZone: 'UTC'}) : '';
+
+                                    // Calcula a data de término
+                                    const dataTerminoFormatada = agendamento.data_inicio && agendamento.dias_necessarios
+                                        ? calcularDataTermino(agendamento.data_inicio, agendamento.dias_necessarios)
+                                        : 'N/A';
+
+                                    return (
+                                        <tr key={agendamento.id}>
+                                            <td>{dataInicioFormatada}</td>
+                                            <td>{dataTerminoFormatada}</td>
+                                            <td>
                                                 <span className={`pc-tag ${
                                                     agendamento.pc_numero === 'PC 094' ? 'blue' :
                                                         agendamento.pc_numero === 'PC 095' ? 'purple' :
@@ -120,15 +141,16 @@ export default function HomePage() {
                                                 }`}>
                                                     {agendamento.pc_numero}
                                                 </span>
-                                        </td>
-                                        <td>{agendamento.agendado_por}</td>
-                                        <td>
-                                            <button onClick={() => handleCancelamento(agendamento.id)} className="cancel-button">
-                                                Cancelar
-                                            </button>
-                                        </td>
-                                    </tr>
-                                ))}
+                                            </td>
+                                            <td>{agendamento.agendado_por}</td>
+                                            <td>
+                                                <button onClick={() => handleCancelamento(agendamento.id)} className="cancel-button">
+                                                    Cancelar
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
                                 </tbody>
                             </table>
                         </div>
