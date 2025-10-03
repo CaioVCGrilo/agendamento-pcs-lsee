@@ -80,27 +80,36 @@
 
 /* Responsividade: Dispositivos Móveis (Retrato) */
 @media (max-width: 640px) and (orientation: portrait) {
+    /* Estilos para o formulário */
     .form-card {
-        padding: 1.5rem; /* Padding reduzido para telas menores */
-        box-shadow: none; /* Remove a sombra para um visual mais limpo */
-        border-radius: 0; /* Opção: remover borda arredondada para ocupar toda a largura */
+        padding: 1.5rem;
+        box-shadow: none;
+        border-radius: 0;
     }
 
     .form-title {
-        text-align: center; /* Centraliza o título para telas pequenas */
+        text-align: center;
         padding-bottom: 0.75rem;
     }
 
     .form-input-modern,
     .form-select-modern {
-        padding: 0.75rem 1rem 0.75rem 2.5rem; /* Ajusta o padding do ícone */
+        padding: 0.75rem 1rem 0.75rem 2.5rem;
+    }
+
+    /* Adicione esta regra específica para o campo de data */
+    .form-input-modern[type="date"] {
+        width: 100%;
+        box-sizing: border-box; /* Garante que o padding não afete a largura total */
     }
 
     .input-icon {
-        left: 0.75rem; /* Ajusta a posição do ícone */
+        left: 0.75rem;
         width: 1rem;
         height: 1rem;
     }
+
+    /* Outras regras de responsividade que você tem */
 }
 
 /* Responsividade: Dispositivos Móveis (Paisagem) */
