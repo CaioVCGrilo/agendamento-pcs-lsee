@@ -97,6 +97,13 @@
         padding: 0.75rem 1rem 0.75rem 2.5rem;
     }
 
+    .form-label-modern {
+        display: block;
+        color: #4b5563;
+        width: 90%;
+        margin-bottom: 0.5rem;
+    }
+
     /* Adicione esta regra específica para o campo de data */
     .form-input-modern[type="date"] {
         width: 100%;
