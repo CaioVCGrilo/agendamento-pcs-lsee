@@ -17,6 +17,29 @@ const pool = mysql.createPool({
     // ssl: { rejectUnauthorized: true },
 });
 
+// Função para auto-excluir agendamentos passados
+async function autoDeleteOldReservations() {
+    console.log("Executando limpeza de agendamentos antigos...");
+
+    // Calcula a data de ontem para garantir que a limpeza não afete agendamentos do dia atual.
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    const yesterdayISO = yesterday.toISOString().split('T')[0];
+
+    // Query para deletar agendamentos onde a data de fim (data_inicio + dias_necessarios) é menor que hoje
+    const deleteQuery = `
+        DELETE FROM agendamentos
+        WHERE DATE_ADD(data_inicio, INTERVAL dias_necessarios DAY) <= ?;
+    `;
+
+    try {
+        const [result] = await pool.execute(deleteQuery, [yesterdayISO]);
+        console.log(`Limpeza concluída. ${result.affectedRows} agendamento(s) antigo(s) excluído(s).`);
+    } catch (error) {
+        console.error("ERRO: Falha ao executar a limpeza de agendamentos antigos.", error);
+    }
+}
+
 // Função de inicialização para criar a tabela se ela ainda não existir
 async function initializeDatabase() {
     console.log("Tentando inicializar o banco de dados e criar a tabela 'agendamentos'...");
@@ -44,6 +67,7 @@ async function initializeDatabase() {
 
 // Chama a função de inicialização assim que o script é carregado
 initializeDatabase();
+autoDeleteOldReservations();
 
 // Função auxiliar para verificar a conexão (simplificada)
 function checkDbConnection() {
