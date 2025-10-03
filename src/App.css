@@ -5,7 +5,7 @@
 
 /* Estilos globais e de corpo */
 .app-container {
-    background-color: #f3f4f6;
+    background-color: #f3f4f6; /* cinza claro */
     min-height: 100vh;
     padding: 2rem;
     font-family: 'Inter', sans-serif;
@@ -19,7 +19,7 @@
     border-radius: 1rem;
     box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
     overflow: hidden;
-    max-width: 80rem;
+    max-width: 80rem; /* 1280px */
     margin: auto;
 }
 
@@ -73,7 +73,7 @@
 /* Tabela */
 .table-container {
     overflow-x: auto;
-    max-width: 90%; /* Limita a largura do contêiner da tabela */
+    max-width: 100%; /* Corrigido para ocupar toda a largura disponível */
 }
 
 .agendamentos-table {
@@ -139,7 +139,7 @@
     color: #065f46;
 }
 
-/* Estilo do formulário (sem o FormularioAgendamento.tsx) */
+/* Estilo do formulário */
 .form-card {
     background-color: white;
     padding: 0.5rem 2.5rem 2.5rem 2.5rem;
@@ -237,7 +237,6 @@
 
 /* Responsividade: Dispositivos Móveis (Retrato) */
 @media (max-width: 640px) and (orientation: portrait) {
-    /* Estilos existentes para o layout da página */
     .app-container {
         padding: 1rem;
     }
@@ -269,73 +268,60 @@
     .content-section {
         padding: 1rem;
     }
-
-    /* Estilos para o formulário */
     .form-card {
         padding: 1.5rem;
         box-shadow: none;
         border-radius: 0;
     }
-
     .form-title {
         text-align: center;
         padding-bottom: 0.75rem;
     }
-
     .form-input-modern,
     .form-select-modern {
         padding: 0.75rem 1rem 0.75rem 2.5rem;
     }
-
     .input-icon {
         left: 0.75rem;
         width: 1rem;
         height: 1rem;
     }
-
-    /* Novos estilos para a tabela */
     .agendamentos-table thead {
-        display: none; /* Esconde o cabeçalho da tabela */
+        display: none;
     }
-
     .agendamentos-table,
     .agendamentos-table tbody,
     .agendamentos-table tr,
     .agendamentos-table td {
-        display: block; /* Transforma a tabela em blocos */
+        display: block;
         width: 100%;
     }
-
     .agendamentos-table tr {
         margin-bottom: 1rem;
         border: 1px solid #e5e7eb;
         border-radius: 0.5rem;
         box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
     }
-
     .agendamentos-table td {
-        text-align: left; /* Alinha o conteúdo à esquerda */
-        padding: 0.75rem 1rem; /* Ajusta o padding */
+        text-align: left;
+        padding: 0.75rem 1rem;
         border-bottom: 1px solid #e5e7eb;
         white-space: normal;
         position: relative;
     }
-
     .agendamentos-table td:last-child {
         border-bottom: none;
         padding-bottom: 1rem;
     }
-
     .agendamentos-table td::before {
         content: attr(data-label);
         font-weight: 600;
         text-transform: uppercase;
-        color: #6b7280; /* Cor mais suave para o rótulo */
-        display: block; /* Exibe o rótulo em uma linha separada */
+        color: #6b7280;
+        display: block;
         margin-bottom: 0.25rem;
         font-size: 0.75rem;
     }
-
     .cancel-button {
         width: 100%;
         margin-top: 0.5rem;
