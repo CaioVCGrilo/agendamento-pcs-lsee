@@ -236,6 +236,7 @@
 
 /* Responsividade: Dispositivos Móveis (Retrato) */
 @media (max-width: 640px) and (orientation: portrait) {
+    /* Estilos existentes para o layout da página */
     .app-container {
         padding: 1rem;
     }
@@ -267,9 +268,35 @@
     .content-section {
         padding: 1rem;
     }
+
+    /* Estilos para o formulário */
+    .form-card {
+        padding: 1.5rem;
+        box-shadow: none;
+        border-radius: 0;
+    }
+
+    .form-title {
+        text-align: center;
+        padding-bottom: 0.75rem;
+    }
+
+    .form-input-modern,
+    .form-select-modern {
+        padding: 0.75rem 1rem 0.75rem 2.5rem;
+    }
+
+    .input-icon {
+        left: 0.75rem;
+        width: 1rem;
+        height: 1rem;
+    }
+
+    /* Novos estilos para a tabela */
     .agendamentos-table thead {
         display: none; /* Esconde o cabeçalho da tabela */
     }
+
     .agendamentos-table,
     .agendamentos-table tbody,
     .agendamentos-table tr,
@@ -277,30 +304,37 @@
         display: block; /* Transforma a tabela em blocos */
         width: 100%;
     }
+
     .agendamentos-table tr {
         margin-bottom: 1rem;
         border: 1px solid #e5e7eb;
         border-radius: 0.5rem;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
     }
+
     .agendamentos-table td {
-        text-align: right;
-        padding: 0.5rem 1rem;
+        text-align: left; /* Alinha o conteúdo à esquerda */
+        padding: 0.75rem 1rem; /* Ajusta o padding */
         border-bottom: 1px solid #e5e7eb;
         white-space: normal;
         position: relative;
     }
+
     .agendamentos-table td:last-child {
         border-bottom: none;
         padding-bottom: 1rem;
     }
-    /* Estilo para adicionar rótulos aos dados da tabela */
+
     .agendamentos-table td::before {
         content: attr(data-label);
         font-weight: 600;
         text-transform: uppercase;
-        float: left;
+        color: #6b7280; /* Cor mais suave para o rótulo */
+        display: block; /* Exibe o rótulo em uma linha separada */
+        margin-bottom: 0.25rem;
+        font-size: 0.75rem;
     }
+
     .cancel-button {
         width: 100%;
         margin-top: 0.5rem;

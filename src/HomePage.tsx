@@ -131,19 +131,20 @@ export default function HomePage() {
 
                                     return (
                                         <tr key={agendamento.id}>
-                                            <td>{dataInicioFormatada}</td>
-                                            <td>{dataTerminoFormatada}</td>
-                                            <td>
-                                                <span className={`pc-tag ${
-                                                    agendamento.pc_numero === 'PC 094' ? 'blue' :
-                                                        agendamento.pc_numero === 'PC 095' ? 'purple' :
-                                                            'green'
-                                                }`}>
-                                                    {agendamento.pc_numero}
-                                                </span>
+                                            {/* Adicione o data-label aqui: */}
+                                            <td data-label="Início">{dataInicioFormatada}</td>
+                                            <td data-label="Término">{dataTerminoFormatada}</td>
+                                            <td data-label="Nº PC">
+                    <span className={`pc-tag ${
+                        agendamento.pc_numero === 'PC 094' ? 'blue' :
+                            agendamento.pc_numero === 'PC 095' ? 'purple' :
+                                'green'
+                    }`}>
+                        {agendamento.pc_numero}
+                    </span>
                                             </td>
-                                            <td>{agendamento.agendado_por}</td>
-                                            <td>
+                                            <td data-label="Agendado por">{agendamento.agendado_por}</td>
+                                            <td data-label="Ação">
                                                 <button onClick={() => handleCancelamento(agendamento.id)} className="cancel-button">
                                                     Cancelar
                                                 </button>
