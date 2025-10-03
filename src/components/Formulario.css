@@ -1,6 +1,6 @@
 .form-card {
     background-color: white;
-    padding: 0.5rem 2.5rem 2.5rem 2.5rem; /* The first value, top padding, is now 0. */
+    padding: 0.5rem 2.5rem 2.5rem 2.5rem;
     border-radius: 1rem;
     box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
     margin-bottom: 2rem;
@@ -10,7 +10,7 @@
     font-size: 1.5rem;
     font-weight: 700;
     margin-bottom: 1rem;
-    text-align: left !important; /* Adicione !important aqui */
+    text-align: left;
     color: #1f3a8a;
     border-bottom: 2px solid #e5e7eb;
     padding-bottom: 1rem;
@@ -43,13 +43,13 @@
 
 .form-input-modern,
 .form-select-modern {
-    width: 100%; /* Garante que o campo ocupe 100% da largura */
-    padding: 0.75rem 1rem 0.75rem 3rem; /* Mantém o padding para o ícone */
+    width: 100%;
+    padding: 0.75rem 1rem 0.75rem 3rem;
     border-radius: 0.5rem;
     border: 1px solid #d1d5db;
     transition: all 0.2s ease-in-out;
     outline: none;
-    box-sizing: border-box; /* Adicione esta propriedade */
+    box-sizing: border-box;
 }
 
 .form-input-modern:focus,
@@ -74,4 +74,51 @@
 .form-button-modern:hover {
     transform: translateY(-2px);
     box-shadow: 0 6px 10px -1px rgba(0, 0, 0, 0.15), 0 3px 6px -1px rgba(0, 0, 0, 0.08);
+}
+
+/* --- */
+
+/* Responsividade: Dispositivos Móveis (Retrato) */
+@media (max-width: 640px) and (orientation: portrait) {
+    .form-card {
+        padding: 1.5rem; /* Padding reduzido para telas menores */
+        box-shadow: none; /* Remove a sombra para um visual mais limpo */
+        border-radius: 0; /* Opção: remover borda arredondada para ocupar toda a largura */
+    }
+
+    .form-title {
+        text-align: center; /* Centraliza o título para telas pequenas */
+        padding-bottom: 0.75rem;
+    }
+
+    .form-input-modern,
+    .form-select-modern {
+        padding: 0.75rem 1rem 0.75rem 2.5rem; /* Ajusta o padding do ícone */
+    }
+
+    .input-icon {
+        left: 0.75rem; /* Ajusta a posição do ícone */
+        width: 1rem;
+        height: 1rem;
+    }
+}
+
+/* Responsividade: Dispositivos Móveis (Paisagem) */
+@media (max-width: 900px) and (orientation: landscape) {
+    .form-card {
+        padding: 1.5rem 2rem; /* Padding ajustado para telas mais largas */
+    }
+
+    .form-title {
+        font-size: 1.25rem; /* Título um pouco menor */
+    }
+
+    .form-input-modern,
+    .form-select-modern {
+        padding: 0.5rem 1rem 0.5rem 2.5rem; /* Reduz a altura dos inputs */
+    }
+
+    .form-button-modern {
+        padding: 0.75rem; /* Botão um pouco mais compacto */
+    }
 }
