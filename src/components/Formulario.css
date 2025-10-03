@@ -10,7 +10,7 @@
     font-size: 1.5rem;
     font-weight: 700;
     margin-bottom: 1rem;
-    text-align: center;
+    text-align: left; /* <-- Altere esta linha para alinhar à esquerda */
     color: #1f3a8a;
     border-bottom: 2px solid #e5e7eb;
     padding-bottom: 1rem;
