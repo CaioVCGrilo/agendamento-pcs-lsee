@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import './Formulario.css';
 
+// Função para formatar a data de hoje para o formato YYYY-MM-DD
 const getTodayDate = () => {
     const today = new Date();
     const year = today.getFullYear();
@@ -8,6 +9,9 @@ const getTodayDate = () => {
     const day = String(today.getDate()).padStart(2, '0');
     return `${year}-${month}-${day}`;
 };
+
+// Lista de todos os PCs no laboratório (usada como fallback)
+const TODOS_PCS = ['PC 082', 'PC 083', 'PC 094', 'PC 095'];
 
 // Adicione a interface para as props
 interface FormularioAgendamentoProps {
@@ -21,10 +25,64 @@ export default function FormularioAgendamento({ onAgendamentoSucesso }: Formular
     const [nome, setNome] = useState('');
     const [pin, setPin] = useState('');
 
+    // Novos estados para gerenciar a disponibilidade
+    const [pcsDisponiveis, setPcsDisponiveis] = useState<string[]>(TODOS_PCS);
+    const [loadingDisponibilidade, setLoadingDisponibilidade] = useState(false);
+
+
+    // EFEITO: Monitora mudanças na data e dias para buscar PCs disponíveis
+    useEffect(() => {
+        const fetchDisponibilidade = async () => {
+            // Verifica se os inputs são válidos para evitar requisições desnecessárias
+            if (!dataInicial || diasNecessarios === '0' || !diasNecessarios || parseInt(diasNecessarios) > 15) {
+                setPcsDisponiveis(TODOS_PCS);
+                return;
+            }
+
+            setLoadingDisponibilidade(true);
+            try {
+                // Chama a nova API de verificação de disponibilidade
+                const response = await fetch(`/api/agendamentos?dataInicial=${dataInicial}&diasNecessarios=${diasNecessarios}`);
+
+                if (response.ok) {
+                    const availablePcs = await response.json();
+                    setPcsDisponiveis(availablePcs);
+
+                    // Se o PC selecionado não estiver mais disponível, limpa a seleção
+                    if (pc && !availablePcs.includes(pc)) {
+                        setPc('');
+                    }
+
+                } else {
+                    // Em caso de falha da API, retorna à lista completa
+                    setPcsDisponiveis(TODOS_PCS);
+                    console.error("Falha ao buscar disponibilidade.");
+                }
+            } catch (error) {
+                console.error("Erro de rede ao buscar disponibilidade:", error);
+                setPcsDisponiveis(TODOS_PCS);
+            } finally {
+                setLoadingDisponibilidade(false);
+            }
+        };
+
+        // Adiciona um pequeno delay (500ms) para evitar muitas requisições rápidas ao digitar
+        const timer = setTimeout(() => {
+            fetchDisponibilidade();
+        }, 500);
+
+        return () => clearTimeout(timer); // Limpa o timer no próximo ciclo
+    }, [dataInicial, diasNecessarios]); // Dependências do efeito
+
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
 
-        // ... (código que define os estados dataInicial, diasNecessarios, pc, nome, pin) ...
+        // 1. Verificação final de disponibilidade antes de submeter
+        if (pcsDisponiveis.length > 0 && !pcsDisponiveis.includes(pc)) {
+            alert(`O PC ${pc} não está disponível para este período. Por favor, selecione uma opção válida.`);
+            return;
+        }
 
         try {
             const response = await fetch('/api/agendamentos', {
@@ -33,22 +91,21 @@ export default function FormularioAgendamento({ onAgendamentoSucesso }: Formular
                 body: JSON.stringify({ dataInicial, diasNecessarios, pc, nome, pin }),
             });
 
-            const result = await response.json(); // Lemos o resultado antes de verificar o status
+            const result = await response.json();
 
             if (response.ok) { // Status 200-299
                 alert('Agendamento criado com sucesso!');
-                // Limpa o formulário
+                // Limpa o formulário e recarrega dados
                 setDataInicial(getTodayDate());
                 setDiasNecessarios('1');
                 setPc('');
                 setNome('');
                 setPin('');
-                onAgendamentoSucesso(); // Chama a função para recarregar a lista
+                onAgendamentoSucesso();
             } else if (response.status === 409) {
-                // TRATAMENTO DE CONFLITO 409
+                // TRATAMENTO DE CONFLITO 409 (Erro já validado na API)
                 const conflito = result.conflito;
 
-                // CORREÇÃO APLICADA AQUI: Remover o "- 1" garante que o dia final seja exibido corretamente.
                 const dataFim = new Date(conflito.data_inicio);
                 dataFim.setDate(dataFim.getDate() + conflito.dias_necessarios); // Cálculo corrigido
 
@@ -71,7 +128,12 @@ export default function FormularioAgendamento({ onAgendamentoSucesso }: Formular
         }
     };
 
-    const pcs = ['PC 082', 'PC 083', 'PC 094', 'PC 095'];
+    // Determina o texto de status de disponibilidade
+    const getDisponibilidadeStatus = () => {
+        if (loadingDisponibilidade) return ' (Verificando...)';
+        if (pcsDisponiveis.length === 0) return ' (Nenhum disponível)';
+        return '';
+    };
 
     return (
         <form onSubmit={handleSubmit} className="form-card">
@@ -119,7 +181,9 @@ export default function FormularioAgendamento({ onAgendamentoSucesso }: Formular
             </div>
 
             <div className="form-group-modern">
-                <label htmlFor="pc" className="form-label-modern">Número do PC</label>
+                <label htmlFor="pc" className="form-label-modern">Número do PC
+                    {getDisponibilidadeStatus()}
+                </label>
                 <div className="form-input-wrapper">
                     <svg xmlns="http://www.w3.org/2000/svg" className="input-icon" fill="currentColor" viewBox="0 0 16 16">
                         <path d="M0 2a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V2zm2-1a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V2a1 1 0 0 0-1-1H2z"/>
@@ -131,9 +195,12 @@ export default function FormularioAgendamento({ onAgendamentoSucesso }: Formular
                         onChange={(e) => setPc(e.target.value)}
                         className="form-input-modern"
                         required
+                        disabled={loadingDisponibilidade || pcsDisponiveis.length === 0}
                     >
-                        <option value="">Selecione um PC</option>
-                        {pcs.map(pc => (
+                        <option value="">
+                            {pcsDisponiveis.length === 0 ? 'NENHUM DISPONÍVEL' : 'Selecione um PC'}
+                        </option>
+                        {pcsDisponiveis.map(pc => (
                             <option key={pc} value={pc}>{pc}</option>
                         ))}
                     </select>
@@ -157,7 +224,6 @@ export default function FormularioAgendamento({ onAgendamentoSucesso }: Formular
                 </div>
             </div>
 
-            {/* Novo campo para o PIN */}
             <div className="form-group-modern">
                 <label htmlFor="pin" className="form-label-modern">PIN de Liberação</label>
                 <div className="form-input-wrapper">
@@ -179,8 +245,9 @@ export default function FormularioAgendamento({ onAgendamentoSucesso }: Formular
             <button
                 type="submit"
                 className="form-button-modern"
+                disabled={pcsDisponiveis.length === 0 || loadingDisponibilidade}
             >
-                Confirmar Agendamento
+                {pcsDisponiveis.length === 0 ? 'Nenhum PC Disponível' : 'Confirmar Agendamento'}
             </button>
         </form>
     );
