@@ -1,0 +1,77 @@
+.form-card {
+    background-color: white;
+    padding: 0.5rem 2.5rem 2.5rem 2.5rem; /* The first value, top padding, is now 0. */
+    border-radius: 1rem;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    margin-bottom: 2rem;
+}
+
+.form-title {
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin-bottom: 1rem;
+    text-align: center;
+    color: #1f3a8a;
+    border-bottom: 2px solid #e5e7eb;
+    padding-bottom: 1rem;
+}
+
+.form-group-modern {
+    margin-bottom: 0.5rem;
+}
+
+.form-label-modern {
+    display: block;
+    color: #4b5563;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+}
+
+.form-input-wrapper {
+    position: relative;
+}
+
+.input-icon {
+    position: absolute;
+    left: 1rem;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 1.25rem;
+    height: 1.25rem;
+    color: #9ca3af;
+}
+
+.form-input-modern,
+.form-select-modern {
+    width: 100%; /* Garante que o campo ocupe 100% da largura */
+    padding: 0.75rem 1rem 0.75rem 3rem; /* Mantém o padding para o ícone */
+    border-radius: 0.5rem;
+    border: 1px solid #d1d5db;
+    transition: all 0.2s ease-in-out;
+    outline: none;
+    box-sizing: border-box; /* Adicione esta propriedade */
+}
+
+.form-input-modern:focus,
+.form-select-modern:focus {
+    border-color: #2563eb;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.25);
+}
+
+.form-button-modern {
+    width: 100%;
+    background-image: linear-gradient(to right, #2563eb, #1e40af);
+    color: white;
+    font-weight: 700;
+    padding: 1rem;
+    border-radius: 0.5rem;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s ease-in-out;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+.form-button-modern:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 10px -1px rgba(0, 0, 0, 0.15), 0 3px 6px -1px rgba(0, 0, 0, 0.08);
+}

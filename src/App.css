@@ -1,38 +1,232 @@
-.App {
-  text-align: center;
+/* src/App.css */
+
+/* Fonte */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;800&display=swap');
+
+/* Estilos globais e de corpo */
+.app-container {
+    background-color: #f3f4f6; /* cinza claro */
+    min-height: 100vh;
+    padding: 2rem;
+    font-family: 'Inter', sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
 }
 
-.App-logo {
-  height: 40vmin;
-  pointer-events: none;
+/* Container principal (o "card" branco) */
+.main-card {
+    background-color: white;
+    border-radius: 1rem;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+    overflow: hidden;
+    max-width: 80rem; /* 1280px */
+    margin: auto;
 }
 
-@media (prefers-reduced-motion: no-preference) {
-  .App-logo {
-    animation: App-logo-spin infinite 20s linear;
-  }
+/* Cabeçalho */
+.header {
+    background: linear-gradient(to right, #1d4ed8, #1e3a8a);
+    color: white;
+    padding: 2rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
 }
 
-.App-header {
-  background-color: #282c34;
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  font-size: calc(10px + 2vmin);
-  color: white;
+.header-logo-container {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
 }
 
-.App-link {
-  color: #61dafb;
+.header-title {
+    font-size: 2rem;
+    font-weight: 800; /* extra bold */
+    letter-spacing: 0.05em;
 }
 
-@keyframes App-logo-spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
+.header-subtitle {
+    font-size: 0.875rem;
+    font-weight: 300;
+    margin-top: 0.25rem;
+}
+
+/* Formulário e Lista (conteúdo interno) */
+.content-section {
+    padding: 2rem;
+}
+
+.section-title {
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin-bottom: 1rem;
+    color: #1f2937;
+    border-bottom: 1px solid #e5e7eb;
+    padding-bottom: 0.5rem;
+}
+
+/* Tabela */
+.table-container {
+    overflow-x: auto;
+}
+
+.agendamentos-table {
+    width: 100%;
+    background-color: white;
+    border-collapse: collapse;
+    border-radius: 0.5rem;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+.agendamentos-table thead {
+    background-color: #f9fafb;
+}
+
+.agendamentos-table th {
+    padding: 0.75rem 1.5rem;
+    text-align: left;
+    color: #4b5563;
+    font-size: 0.875rem;
+    text-transform: uppercase;
+    font-weight: 600;
+    line-height: 1.5;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.agendamentos-table tbody {
+    font-size: 0.875rem;
+    color: #374151;
+}
+
+.agendamentos-table td {
+    padding: 0.75rem 1.5rem;
+    border-bottom: 1px solid #e5e7eb;
+    white-space: nowrap;
+}
+
+.agendamentos-table tr:hover {
+    background-color: #f3f4f6;
+    transition: background-color 0.15s ease-in-out;
+}
+
+/* Estilo das tags de PC */
+.pc-tag {
+    display: inline-block;
+    padding: 0.25rem 0.5rem;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.pc-tag.blue {
+    background-color: #dbeafe;
+    color: #1e40af;
+}
+
+.pc-tag.purple {
+    background-color: #ede9fe;
+    color: #6d28d9;
+}
+
+.pc-tag.green {
+    background-color: #d1fae5;
+    color: #065f46;
+}
+
+/* Estilo do formulário (sem o FormularioAgendamento.tsx) */
+.form-container {
+    background-color: white;
+    padding: 1.5rem;
+    border-radius: 0.5rem;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    max-width: 32rem;
+    margin: auto;
+    margin-bottom: 2rem;
+}
+
+.form-title {
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin-bottom: 1.5rem;
+    text-align: center;
+    color: #1f3a8a;
+}
+
+.form-group {
+    margin-bottom: 1rem;
+}
+
+.form-label {
+    display: block;
+    color: #4b5563;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+}
+
+.form-input,
+.form-select {
+    width: 100%;
+    padding: 0.5rem 1rem;
+    border-radius: 0.375rem;
+    border: 1px solid #d1d5db;
+    outline: none;
+    transition: box-shadow 0.2s ease-in-out, border-color 0.2s ease-in-out;
+}
+
+.form-input:focus,
+.form-select:focus {
+    border-color: #2563eb;
+    box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.5);
+}
+
+.form-button {
+    width: 100%;
+    background-color: #2563eb;
+    color: white;
+    font-weight: 700;
+    padding: 0.75rem 1rem;
+    border-radius: 0.375rem;
+    border: none;
+    cursor: pointer;
+    transition: background-color 0.2s ease-in-out;
+}
+
+.form-button:hover {
+    background-color: #1d4ed8;
+}
+
+/* Responsividade */
+@media (max-width: 640px) {
+    .header {
+        flex-direction: column;
+        text-align: center;
+        gap: 0.5rem;
+    }
+    .header-logo-container {
+        margin-bottom: 0.5rem;
+    }
+    .header-title {
+        font-size: 1.5rem;
+    }
+    .header-subtitle {
+        font-size: 0.75rem;
+    }
+    .content-section {
+        padding: 1rem;
+    }
+}
+
+.cancel-button {
+    background-color: #ef4444; /* Vermelho */
+    color: white;
+    font-weight: 600;
+    padding: 0.5rem 1rem;
+    border-radius: 0.5rem;
+    border: none;
+    cursor: pointer;
+    transition: background-color 0.2s ease-in-out;
+}
+
+.cancel-button:hover {
+    background-color: #dc2626; /* Um tom de vermelho mais escuro no hover */
 }
