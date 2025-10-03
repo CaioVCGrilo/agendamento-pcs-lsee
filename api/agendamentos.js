@@ -56,71 +56,31 @@ function checkDbConnection() {
     return null;
 }
 
-// Lista de todos os PCs disponíveis no laboratório
-const TODOS_PCS = ['PC 094', 'PC 095', 'PC 083', 'PC 084', 'PC 085'];
-
-// Rota GET para buscar PCs disponíveis (NOVA ROTA)
-export async function GET_DISPONIVEIS(request) {
-    const connectionError = checkDbConnection();
-    if (connectionError) return connectionError;
-
-    try {
-        const { searchParams } = new URL(request.url);
-        const dataInicio = searchParams.get('dataInicial');
-        const diasNecessarios = parseInt(searchParams.get('diasNecessarios'), 10);
-
-        if (!dataInicio || !diasNecessarios || diasNecessarios < 1) {
-            // Retorna todos os PCs se os parâmetros estiverem incompletos/inválidos
-            return NextResponse.json(TODOS_PCS, { status: 200 });
-        }
-
-        // 1. Calcula a data de fim para a consulta
-        const dataFimReserva = new Date(dataInicio);
-        dataFimReserva.setDate(dataFimReserva.getDate() + diasNecessarios - 1);
-        const dataFimISO = dataFimReserva.toISOString().split('T')[0];
-
-        // 2. Consulta: Encontra todos os PCs OCUPADOS no período
-        const occupiedQuery = `
-            SELECT DISTINCT pc_numero
-            FROM agendamentos
-            WHERE NOT (
-                data_inicio > ? OR DATE_ADD(data_inicio, INTERVAL dias_necessarios - 1 DAY) < ?
-            );
-        `;
-
-        const [occupiedResult] = await pool.execute(occupiedQuery, [dataFimISO, dataInicio]);
-
-        // 3. Filtra os PCs disponíveis
-        const occupiedPcs = occupiedResult.map(row => row.pc_numero);
-        const availablePcs = TODOS_PCS.filter(pc => !occupiedPcs.includes(pc));
-
-        return NextResponse.json(availablePcs, { status: 200 });
-
-    } catch (error) {
-        console.error('Erro ao buscar PCs disponíveis (GET_DISPONIVEIS):', error);
-        return NextResponse.json({ error: 'Erro ao verificar disponibilidade.' }, { status: 503 });
-    }
-}
-
 // Rota POST para criar um novo agendamento com VERIFICAÇÃO DE CONFLITO
 export async function POST(request) {
     const connectionError = checkDbConnection();
     if (connectionError) return connectionError;
 
     try {
+        // Recebe os dados do formulário
         const { dataInicial, diasNecessarios, pc, nome, pin } = await request.json();
+
+        if (!dataInicial || !diasNecessarios || !pc || !nome || !pin) {
+            return NextResponse.json({ error: 'Dados incompletos. Todos os campos são obrigatórios.' }, { status: 400 });
+        }
+
+        // --- LÓGICA DE VERIFICAÇÃO DE CONFLITO ---
 
         const dataInicio = dataInicial;
         const dias = parseInt(diasNecessarios, 10);
 
-        if (!dataInicio || !dias || !pc || !nome || !pin) {
-            return NextResponse.json({ error: 'Dados incompletos. Todos os campos são obrigatórios.' }, { status: 400 });
-        }
-
+        // 1. Calcula a data de fim da nova reserva
         const dataFimReserva = new Date(dataInicio);
         dataFimReserva.setDate(dataFimReserva.getDate() + dias - 1);
+
         const dataFimISO = dataFimReserva.toISOString().split('T')[0];
 
+        // 2. Query para encontrar conflitos no mesmo PC
         const conflictQuery = `
             SELECT id, data_inicio, dias_necessarios, agendado_por 
             FROM agendamentos 
@@ -131,14 +91,16 @@ export async function POST(request) {
             LIMIT 1;
         `;
 
+        // NOTA: A lógica NOT (A OR B) é o mesmo que (NOT A AND NOT B), que verifica se há SOBREPOSIÇÃO.
+        // Sobeposição ocorre se a nova data de início não for depois da data de fim da reserva existente E
+        // se a nova data de fim não for antes da data de início da reserva existente.
+
         const [conflicts] = await pool.execute(conflictQuery, [pc, dataFimISO, dataInicio]);
 
         if (conflicts.length > 0) {
             const conflito = conflicts[0];
 
-            const dataFimConflito = new Date(conflito.data_inicio);
-            dataFimConflito.setDate(dataFimConflito.getDate() + conflito.dias_necessarios);
-
+            // Retorna 409 Conflict com os detalhes da reserva existente
             return NextResponse.json({
                 error: 'CONFLITO DE AGENDAMENTO',
                 message: `O PC ${pc} já está reservado durante este período.`,
@@ -150,8 +112,12 @@ export async function POST(request) {
             }, { status: 409 });
         }
 
+        // --- FIM DA VERIFICAÇÃO DE CONFLITO ---
+
+        // CRIPTOGRAFIA: Salva o PIN como hash MD5
         const hashedPin = crypto.createHash('md5').update(pin).digest('hex');
 
+        // Consulta SQL para INSERIR dados no MySQL
         const insertQuery = `
             INSERT INTO agendamentos (
                 data_inicio, 
@@ -162,31 +128,37 @@ export async function POST(request) {
             ) VALUES (?, ?, ?, ?, ?);
         `;
 
-        const [result] = await pool.execute(insertQuery, [dataInicial, dias, pc, nome, hashedPin]);
+        // Insere o PIN criptografado
+        const [result] = await pool.execute(insertQuery, [dataInicial, diasNecessarios, pc, nome, hashedPin]);
 
+        // Retorna o status de sucesso
         return NextResponse.json({
             message: 'Agendamento criado com sucesso!',
-            id: result.insertId
+            id: result.insertId // Retorna o ID do novo registro
         }, { status: 201 });
 
     } catch (error) {
         console.error('Erro ao processar agendamento (POST):', error);
+        // Em caso de erro de DB, retorna 503 Service Unavailable
         return NextResponse.json({ error: 'Erro de infraestrutura ao salvar o agendamento.' }, { status: 503 });
     }
 }
 
 // Rota GET para buscar todos os agendamentos (PIN NÃO é retornado)
-export async function GET_ALL_AGENDAMENTOS() {
+export async function GET() {
+    // ... (O código GET permanece o mesmo) ...
     const connectionError = checkDbConnection();
     if (connectionError) return connectionError;
 
     try {
+        // Consulta SQL: Note que a coluna 'pin' foi removida da seleção para segurança
         const [agendamentos] = await pool.execute(
             `SELECT id, DATE_FORMAT(data_inicio, '%Y-%m-%d') AS data_inicio, dias_necessarios, pc_numero, agendado_por
-             FROM agendamentos 
+             FROM agendamentos
              ORDER BY data_inicio DESC;`
         );
 
+        // O resultado da consulta MySQL é um array de objetos, que é retornado diretamente
         return NextResponse.json(agendamentos, { status: 200 });
 
     } catch (error) {
@@ -197,10 +169,12 @@ export async function GET_ALL_AGENDAMENTOS() {
 
 // Rota DELETE para cancelar um agendamento com verificação de PIN
 export async function DELETE(request) {
+    // ... (O código DELETE permanece o mesmo) ...
     const connectionError = checkDbConnection();
     if (connectionError) return connectionError;
 
     try {
+        // Recebe os parâmetros da URL (id) e o corpo da requisição (pin)
         const { searchParams } = new URL(request.url);
         const id = searchParams.get('id');
         const { pinDigitado } = await request.json();
@@ -209,14 +183,17 @@ export async function DELETE(request) {
             return NextResponse.json({ error: 'ID e PIN de liberação são obrigatórios.' }, { status: 400 });
         }
 
+        // CRIPTOGRAFIA: Criptografa o PIN digitado para comparação
         const hashedPinDigitado = crypto.createHash('md5').update(pinDigitado).digest('hex');
 
+        // 1. Verifica se o PIN CRIPTOGRAFADO corresponde ao agendamento e o exclui
         const [deleteResult] = await pool.execute(
             'DELETE FROM agendamentos WHERE id = ? AND pin = ?',
             [id, hashedPinDigitado]
         );
 
         if (deleteResult.affectedRows === 0) {
+            // Se nenhuma linha foi afetada, significa que o ID não existe OU o PIN estava incorreto
             return NextResponse.json({ error: 'PIN ou ID do agendamento incorreto. Cancelamento não autorizado.' }, { status: 403 });
         }
 
@@ -226,13 +203,4 @@ export async function DELETE(request) {
         console.error('Erro ao processar cancelamento (DELETE):', error);
         return NextResponse.json({ error: 'Erro de infraestrutura ao cancelar o agendamento.' }, { status: 503 });
     }
-}
-
-// Adiciona um roteador para a rota GET
-export async function GET(request) {
-    const { searchParams } = new URL(request.url);
-    if (searchParams.has('dataInicial') && searchParams.has('diasNecessarios')) {
-        return GET_DISPONIVEIS(request);
-    }
-    return GET_ALL_AGENDAMENTOS();
 }
