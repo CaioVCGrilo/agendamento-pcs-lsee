@@ -10,7 +10,7 @@ const getTodayDate = () => {
     return `${year}-${month}-${day}`;
 };
 
-// Lista de todos os PCs no laboratório (usada como fallback)
+// Lista de todos os PCs no laboratório (MESMA LISTA DO BACKEND)
 const TODOS_PCS = ['PC 082', 'PC 083', 'PC 094', 'PC 095'];
 
 // Adicione a interface para as props
@@ -54,9 +54,9 @@ export default function FormularioAgendamento({ onAgendamentoSucesso }: Formular
                     }
 
                 } else {
-                    // Em caso de falha da API, retorna à lista completa
+                    // Em caso de falha da API, retorna à lista completa e mostra erro no console
                     setPcsDisponiveis(TODOS_PCS);
-                    console.error("Falha ao buscar disponibilidade.");
+                    console.error("Falha ao buscar disponibilidade. Usando lista completa como fallback.");
                 }
             } catch (error) {
                 console.error("Erro de rede ao buscar disponibilidade:", error);
@@ -72,7 +72,15 @@ export default function FormularioAgendamento({ onAgendamentoSucesso }: Formular
         }, 500);
 
         return () => clearTimeout(timer); // Limpa o timer no próximo ciclo
-    }, [dataInicial, diasNecessarios]); // Dependências do efeito
+    }, [dataInicial, diasNecessarios, pc]); // A dependência 'pc' garante que a seleção seja limpa
+
+    // Determina o texto de status de disponibilidade
+    const getDisponibilidadeStatus = () => {
+        if (loadingDisponibilidade) return ' (Verificando...)';
+        if (pcsDisponiveis.length === 0) return ' (Nenhum disponível)';
+        if (pcsDisponiveis.length === TODOS_PCS.length) return ' (Todos disponíveis)';
+        return ` (${pcsDisponiveis.length} disponíveis)`;
+    };
 
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -84,6 +92,13 @@ export default function FormularioAgendamento({ onAgendamentoSucesso }: Formular
             return;
         }
 
+        // 2. Verifica se o usuário pode tentar agendar (se há algo disponível)
+        if (pcsDisponiveis.length === 0) {
+            alert(`Nenhum PC disponível para o período selecionado. Por favor, ajuste a data ou os dias.`);
+            return;
+        }
+
+
         try {
             const response = await fetch('/api/agendamentos', {
                 method: 'POST',
@@ -93,9 +108,8 @@ export default function FormularioAgendamento({ onAgendamentoSucesso }: Formular
 
             const result = await response.json();
 
-            if (response.ok) { // Status 200-299
+            if (response.ok) {
                 alert('Agendamento criado com sucesso!');
-                // Limpa o formulário e recarrega dados
                 setDataInicial(getTodayDate());
                 setDiasNecessarios('1');
                 setPc('');
@@ -107,7 +121,7 @@ export default function FormularioAgendamento({ onAgendamentoSucesso }: Formular
                 const conflito = result.conflito;
 
                 const dataFim = new Date(conflito.data_inicio);
-                dataFim.setDate(dataFim.getDate() + conflito.dias_necessarios); // Cálculo corrigido
+                dataFim.setDate(dataFim.getDate() + conflito.dias_necessarios);
 
                 const dataFimStr = dataFim.toLocaleDateString('pt-BR');
                 const dataInicioStr = new Date(conflito.data_inicio).toLocaleDateString('pt-BR');
@@ -126,13 +140,6 @@ export default function FormularioAgendamento({ onAgendamentoSucesso }: Formular
             alert('Erro de conexão com o servidor.');
             console.error('Erro ao enviar formulário:', error);
         }
-    };
-
-    // Determina o texto de status de disponibilidade
-    const getDisponibilidadeStatus = () => {
-        if (loadingDisponibilidade) return ' (Verificando...)';
-        if (pcsDisponiveis.length === 0) return ' (Nenhum disponível)';
-        return '';
     };
 
     return (
