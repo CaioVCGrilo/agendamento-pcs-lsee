@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import './Formulario.css';
 
-// Função para formatar a data de hoje para o formato YYYY-MM-DD
 const getTodayDate = () => {
     const today = new Date();
     const year = today.getFullYear();
@@ -10,17 +9,44 @@ const getTodayDate = () => {
     return `${year}-${month}-${day}`;
 };
 
-export default function FormularioAgendamento() {
+// Adicione a interface para as props
+interface FormularioAgendamentoProps {
+    onAgendamentoSucesso: () => void;
+}
+
+export default function FormularioAgendamento({ onAgendamentoSucesso }: FormularioAgendamentoProps) {
     const [dataInicial, setDataInicial] = useState(getTodayDate());
     const [diasNecessarios, setDiasNecessarios] = useState('1');
     const [pc, setPc] = useState('');
     const [nome, setNome] = useState('');
-    const [pin, setPin] = useState(''); // Novo estado para o PIN
+    const [pin, setPin] = useState('');
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        console.log('Dados do formulário:', { dataInicial, diasNecessarios, pc, nome, pin });
-        alert('Formulário enviado! (Ainda não salva no banco de dados)');
+
+        try {
+            const response = await fetch('/api/agendamentos', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ dataInicial, diasNecessarios, pc, nome, pin }),
+            });
+
+            if (response.ok) {
+                alert('Agendamento criado com sucesso!');
+                setDataInicial(getTodayDate());
+                setDiasNecessarios('1');
+                setPc('');
+                setNome('');
+                setPin('');
+                onAgendamentoSucesso(); // Chama a função para recarregar a lista
+            } else {
+                const errorData = await response.json();
+                alert(`Erro: ${errorData.error}`);
+            }
+        } catch (error) {
+            alert('Erro de conexão com o servidor.');
+            console.error('Erro ao enviar formulário:', error);
+        }
     };
 
     const pcs = ['PC 094', 'PC 095', 'PC 083', 'PC 084', 'PC 085'];
