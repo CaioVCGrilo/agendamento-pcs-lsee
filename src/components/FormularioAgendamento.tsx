@@ -47,8 +47,10 @@ export default function FormularioAgendamento({ onAgendamentoSucesso }: Formular
             } else if (response.status === 409) {
                 // TRATAMENTO DE CONFLITO 409
                 const conflito = result.conflito;
+
+                // CORREÇÃO APLICADA AQUI: Remover o "- 1" garante que o dia final seja exibido corretamente.
                 const dataFim = new Date(conflito.data_inicio);
-                dataFim.setDate(dataFim.getDate() + conflito.dias_necessarios - 1);
+                dataFim.setDate(dataFim.getDate() + conflito.dias_necessarios); // Cálculo corrigido
 
                 const dataFimStr = dataFim.toLocaleDateString('pt-BR');
                 const dataInicioStr = new Date(conflito.data_inicio).toLocaleDateString('pt-BR');
