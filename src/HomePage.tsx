@@ -4,16 +4,13 @@ import React, { useEffect, useState } from 'react';
 import FormularioAgendamento from './components/FormularioAgendamento';
 import './App.css';
 
-// Remove a função de cálculo de data, pois faremos isso no backend.
-// Remove os dados simulados (agendamentosMock).
-
 interface Agendamento {
     id: number;
-    data_inicio: string; // Corrigido para a coluna do banco de dados
-    dias_necessarios: number; // Corrigido para a coluna do banco de dados
+    data_inicio: string;
+    dias_necessarios: number;
     pc_numero: string;
     agendado_por: string;
-    pin: string;
+    // O PIN não está na interface do front-end por questões de segurança
 }
 
 export default function HomePage() {
@@ -36,10 +33,42 @@ export default function HomePage() {
     };
 
     const handleCancelamento = async (id: number) => {
+        // 1. Solicita o PIN ao usuário
         const pinDigitado = prompt("Para cancelar, digite o PIN de liberação:");
-        // Lógica de cancelamento (será implementada na API)
-        // Por enquanto, apenas um alerta
-        alert("A lógica de cancelamento real será implementada aqui.");
+
+        if (!pinDigitado) {
+            alert("Operação cancelada.");
+            return;
+        }
+
+        // 2. Envia a requisição DELETE para a API
+        try {
+            const response = await fetch(`/api/agendamentos?id=${id}`, {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ pinDigitado }), // O PIN é enviado no corpo
+            });
+
+            const result = await response.json();
+
+            if (response.ok) {
+                // 3. Sucesso: recarrega a lista
+                alert(`Agendamento ${id} cancelado com sucesso!`);
+                fetchAgendamentos();
+            } else if (response.status === 403) {
+                // 4. PIN Incorreto (Erro 403 retornado pela API)
+                alert(`Falha no Cancelamento: ${result.error || 'PIN incorreto.'}`);
+            } else {
+                // 5. Outros erros (400, 500, 503)
+                alert(`Erro ao cancelar: ${result.error || 'Erro desconhecido.'}`);
+            }
+
+        } catch (error) {
+            console.error("Erro na requisição DELETE:", error);
+            alert("Erro de conexão com o servidor ao tentar cancelar.");
+        }
     };
 
     useEffect(() => {
@@ -51,7 +80,14 @@ export default function HomePage() {
             <div className="main-card">
                 <header className="header">
                     <div className="header-logo-container">
-                        {/* ... (código do cabeçalho) ... */}
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 16 16" className="w-12 h-12">
+                            <path d="M4 .5a.5.5 0 0 0-1 0V1H2a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V3a2 2 0 0 0-2-2h-1V.5a.5.5 0 0 0-1 0V1H4V.5zm-.5 3h9a.5.5 0 0 0 0-1h-9a.5.5 0 0 0 0 1z"/>
+                            <path d="M1 8v7a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8H1zm-1 0a1 1 0 0 0 1-1h14a1 1 0 0 0 1 1H0z"/>
+                        </svg>
+                        <div>
+                            <h1 className="header-title">Agendamento de Servidores</h1>
+                            <p className="header-subtitle">Laboratório de Sistemas de Energia Elétrica</p>
+                        </div>
                     </div>
                 </header>
                 <div className="content-section">

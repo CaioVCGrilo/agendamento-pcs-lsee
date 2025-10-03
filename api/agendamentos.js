@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 // Importa a biblioteca mysql2 e a função 'createPool' para gerenciar conexões.
 import mysql from 'mysql2/promise';
+// Importa o módulo nativo 'crypto' para criptografia de senhas (MD5)
+const crypto = require('crypto');
 
 // Configuração do pool de conexões com variáveis de ambiente
 const pool = mysql.createPool({
@@ -20,6 +22,7 @@ async function initializeDatabase() {
     console.log("Tentando inicializar o banco de dados e criar a tabela 'agendamentos'...");
 
     // Query para criar a tabela com o comando IF NOT EXISTS
+    // NOTA: O campo PIN VARCHAR(10) deve ser VARCHAR(32) para armazenar o hash MD5 completo.
     const createTableQuery = `
         CREATE TABLE IF NOT EXISTS agendamentos (
             id INT AUTO_INCREMENT PRIMARY KEY,
@@ -27,7 +30,7 @@ async function initializeDatabase() {
             dias_necessarios INT NOT NULL,
             pc_numero VARCHAR(50) NOT NULL,
             agendado_por VARCHAR(100) NOT NULL,
-            pin VARCHAR(10) NOT NULL,
+            pin VARCHAR(32) NOT NULL,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
     `;
@@ -37,13 +40,10 @@ async function initializeDatabase() {
         console.log("Tabela 'agendamentos' verificada/criada com sucesso.");
     } catch (error) {
         console.error("ERRO CRÍTICO: Falha ao inicializar a tabela agendamentos.", error);
-        // Em um ambiente Vercel, este erro de inicialização pode ser a causa do FUNCTION_INVOCATION_FAILED.
-        // É crucial que as variáveis de ambiente e o banco de dados estejam acessíveis aqui.
     }
 }
 
 // Chama a função de inicialização assim que o script é carregado
-// Isso garante que a tabela exista antes que qualquer rota tente acessá-la.
 initializeDatabase();
 
 // Função auxiliar para verificar a conexão (simplificada)
@@ -70,6 +70,9 @@ export async function POST(request) {
             return NextResponse.json({ error: 'Dados incompletos. Todos os campos são obrigatórios.' }, { status: 400 });
         }
 
+        // CRIPTOGRAFIA: Salva o PIN como hash MD5
+        const hashedPin = crypto.createHash('md5').update(pin).digest('hex');
+
         // Consulta SQL para INSERIR dados no MySQL
         const query = `
             INSERT INTO agendamentos (
@@ -81,8 +84,8 @@ export async function POST(request) {
             ) VALUES (?, ?, ?, ?, ?);
         `;
 
-        // O método pool.execute usa placeholders (?) que são mais seguros (Prepared Statements)
-        const [result] = await pool.execute(query, [dataInicial, diasNecessarios, pc, nome, pin]);
+        // Insere o PIN criptografado
+        const [result] = await pool.execute(query, [dataInicial, diasNecessarios, pc, nome, hashedPin]);
 
         // Retorna o status de sucesso
         return NextResponse.json({
@@ -97,16 +100,16 @@ export async function POST(request) {
     }
 }
 
-// Rota GET para buscar todos os agendamentos
+// Rota GET para buscar todos os agendamentos (PIN NÃO é retornado)
 export async function GET() {
     const connectionError = checkDbConnection();
     if (connectionError) return connectionError;
 
     try {
-        // Consulta SQL para buscar dados no MySQL
+        // Consulta SQL: Note que a coluna 'pin' foi removida da seleção para segurança
         const [agendamentos] = await pool.execute(
-            `SELECT id, DATE_FORMAT(data_inicio, '%Y-%m-%d') AS data_inicio, dias_necessarios, pc_numero, agendado_por, pin 
-             FROM agendamentos 
+            `SELECT id, DATE_FORMAT(data_inicio, '%Y-%m-%d') AS data_inicio, dias_necessarios, pc_numero, agendado_por
+             FROM agendamentos
              ORDER BY data_inicio DESC;`
         );
 
@@ -116,5 +119,44 @@ export async function GET() {
     } catch (error) {
         console.error('Erro ao buscar agendamentos (GET):', error);
         return NextResponse.json({ error: 'Erro de infraestrutura ao carregar a lista de agendamentos.' }, { status: 503 });
+    }
+}
+
+// Rota DELETE para cancelar um agendamento com verificação de PIN
+export async function DELETE(request) {
+    const connectionError = checkDbConnection();
+    if (connectionError) return connectionError;
+
+    try {
+        // Recebe os parâmetros da URL (id) e o corpo da requisição (pin)
+        const { searchParams } = new URL(request.url);
+        const id = searchParams.get('id');
+        const { pinDigitado } = await request.json();
+
+        if (!id || !pinDigitado) {
+            return NextResponse.json({ error: 'ID e PIN de liberação são obrigatórios.' }, { status: 400 });
+        }
+
+        // CRIPTOGRAFIA: Criptografa o PIN digitado para comparação
+        const hashedPinDigitado = crypto.createHash('md5').update(pinDigitado).digest('hex');
+
+        // 1. Verifica se o PIN CRIPTOGRAFADO corresponde ao agendamento
+        const [deleteResult] = await pool.execute(
+            'DELETE FROM agendamentos WHERE id = ? AND pin = ?',
+            [id, hashedPinDigitado]
+        );
+
+        if (deleteResult.affectedRows === 0) {
+            // Se nenhuma linha foi afetada, significa que o ID não existe OU o PIN estava incorreto
+            // Retornamos 403 (Proibido) para PIN incorreto ou 404 (Não Encontrado) para ID
+            // Aqui, retornamos uma mensagem genérica de erro de autenticação para segurança
+            return NextResponse.json({ error: 'PIN ou ID do agendamento incorreto. Cancelamento não autorizado.' }, { status: 403 });
+        }
+
+        return NextResponse.json({ message: 'Agendamento cancelado com sucesso.' }, { status: 200 });
+
+    } catch (error) {
+        console.error('Erro ao processar cancelamento (DELETE):', error);
+        return NextResponse.json({ error: 'Erro de infraestrutura ao cancelar o agendamento.' }, { status: 503 });
     }
 }
