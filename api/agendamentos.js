@@ -22,17 +22,16 @@ async function initializeDatabase() {
     console.log("Tentando inicializar o banco de dados e criar a tabela 'agendamentos'...");
 
     // Query para criar a tabela com o comando IF NOT EXISTS
-    // NOTA: O campo PIN VARCHAR(10) deve ser VARCHAR(32) para armazenar o hash MD5 completo.
     const createTableQuery = `
         CREATE TABLE IF NOT EXISTS agendamentos (
-            id INT AUTO_INCREMENT PRIMARY KEY,
-            data_inicio DATE NOT NULL,
-            dias_necessarios INT NOT NULL,
-            pc_numero VARCHAR(50) NOT NULL,
+                                                    id INT AUTO_INCREMENT PRIMARY KEY,
+                                                    data_inicio DATE NOT NULL,
+                                                    dias_necessarios INT NOT NULL,
+                                                    pc_numero VARCHAR(50) NOT NULL,
             agendado_por VARCHAR(100) NOT NULL,
             pin VARCHAR(32) NOT NULL,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        );
+            );
     `;
 
     try {
@@ -57,7 +56,7 @@ function checkDbConnection() {
     return null;
 }
 
-// Rota POST para criar um novo agendamento
+// Rota POST para criar um novo agendamento com VERIFICAÇÃO DE CONFLITO
 export async function POST(request) {
     const connectionError = checkDbConnection();
     if (connectionError) return connectionError;
@@ -70,11 +69,56 @@ export async function POST(request) {
             return NextResponse.json({ error: 'Dados incompletos. Todos os campos são obrigatórios.' }, { status: 400 });
         }
 
+        // --- LÓGICA DE VERIFICAÇÃO DE CONFLITO ---
+
+        const dataInicio = dataInicial;
+        const dias = parseInt(diasNecessarios, 10);
+
+        // 1. Calcula a data de fim da nova reserva
+        const dataFimReserva = new Date(dataInicio);
+        dataFimReserva.setDate(dataFimReserva.getDate() + dias - 1);
+
+        const dataFimISO = dataFimReserva.toISOString().split('T')[0];
+
+        // 2. Query para encontrar conflitos no mesmo PC
+        const conflictQuery = `
+            SELECT id, data_inicio, dias_necessarios, agendado_por 
+            FROM agendamentos 
+            WHERE pc_numero = ? 
+            AND NOT (
+                data_inicio > ? OR DATE_ADD(data_inicio, INTERVAL dias_necessarios - 1 DAY) < ?
+            )
+            LIMIT 1;
+        `;
+
+        // NOTA: A lógica NOT (A OR B) é o mesmo que (NOT A AND NOT B), que verifica se há SOBREPOSIÇÃO.
+        // Sobeposição ocorre se a nova data de início não for depois da data de fim da reserva existente E
+        // se a nova data de fim não for antes da data de início da reserva existente.
+
+        const [conflicts] = await pool.execute(conflictQuery, [pc, dataFimISO, dataInicio]);
+
+        if (conflicts.length > 0) {
+            const conflito = conflicts[0];
+
+            // Retorna 409 Conflict com os detalhes da reserva existente
+            return NextResponse.json({
+                error: 'CONFLITO DE AGENDAMENTO',
+                message: `O PC ${pc} já está reservado durante este período.`,
+                conflito: {
+                    agendado_por: conflito.agendado_por,
+                    data_inicio: conflito.data_inicio,
+                    dias_necessarios: conflito.dias_necessarios
+                }
+            }, { status: 409 });
+        }
+
+        // --- FIM DA VERIFICAÇÃO DE CONFLITO ---
+
         // CRIPTOGRAFIA: Salva o PIN como hash MD5
         const hashedPin = crypto.createHash('md5').update(pin).digest('hex');
 
         // Consulta SQL para INSERIR dados no MySQL
-        const query = `
+        const insertQuery = `
             INSERT INTO agendamentos (
                 data_inicio, 
                 dias_necessarios, 
@@ -85,7 +129,7 @@ export async function POST(request) {
         `;
 
         // Insere o PIN criptografado
-        const [result] = await pool.execute(query, [dataInicial, diasNecessarios, pc, nome, hashedPin]);
+        const [result] = await pool.execute(insertQuery, [dataInicial, diasNecessarios, pc, nome, hashedPin]);
 
         // Retorna o status de sucesso
         return NextResponse.json({
@@ -102,6 +146,7 @@ export async function POST(request) {
 
 // Rota GET para buscar todos os agendamentos (PIN NÃO é retornado)
 export async function GET() {
+    // ... (O código GET permanece o mesmo) ...
     const connectionError = checkDbConnection();
     if (connectionError) return connectionError;
 
@@ -124,6 +169,7 @@ export async function GET() {
 
 // Rota DELETE para cancelar um agendamento com verificação de PIN
 export async function DELETE(request) {
+    // ... (O código DELETE permanece o mesmo) ...
     const connectionError = checkDbConnection();
     if (connectionError) return connectionError;
 
@@ -140,7 +186,7 @@ export async function DELETE(request) {
         // CRIPTOGRAFIA: Criptografa o PIN digitado para comparação
         const hashedPinDigitado = crypto.createHash('md5').update(pinDigitado).digest('hex');
 
-        // 1. Verifica se o PIN CRIPTOGRAFADO corresponde ao agendamento
+        // 1. Verifica se o PIN CRIPTOGRAFADO corresponde ao agendamento e o exclui
         const [deleteResult] = await pool.execute(
             'DELETE FROM agendamentos WHERE id = ? AND pin = ?',
             [id, hashedPinDigitado]
@@ -148,8 +194,6 @@ export async function DELETE(request) {
 
         if (deleteResult.affectedRows === 0) {
             // Se nenhuma linha foi afetada, significa que o ID não existe OU o PIN estava incorreto
-            // Retornamos 403 (Proibido) para PIN incorreto ou 404 (Não Encontrado) para ID
-            // Aqui, retornamos uma mensagem genérica de erro de autenticação para segurança
             return NextResponse.json({ error: 'PIN ou ID do agendamento incorreto. Cancelamento não autorizado.' }, { status: 403 });
         }
 

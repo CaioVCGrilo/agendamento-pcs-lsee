@@ -24,6 +24,8 @@ export default function FormularioAgendamento({ onAgendamentoSucesso }: Formular
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
 
+        // ... (código que define os estados dataInicial, diasNecessarios, pc, nome, pin) ...
+
         try {
             const response = await fetch('/api/agendamentos', {
                 method: 'POST',
@@ -31,17 +33,35 @@ export default function FormularioAgendamento({ onAgendamentoSucesso }: Formular
                 body: JSON.stringify({ dataInicial, diasNecessarios, pc, nome, pin }),
             });
 
-            if (response.ok) {
+            const result = await response.json(); // Lemos o resultado antes de verificar o status
+
+            if (response.ok) { // Status 200-299
                 alert('Agendamento criado com sucesso!');
+                // Limpa o formulário
                 setDataInicial(getTodayDate());
                 setDiasNecessarios('1');
                 setPc('');
                 setNome('');
                 setPin('');
                 onAgendamentoSucesso(); // Chama a função para recarregar a lista
+            } else if (response.status === 409) {
+                // TRATAMENTO DE CONFLITO 409
+                const conflito = result.conflito;
+                const dataFim = new Date(conflito.data_inicio);
+                dataFim.setDate(dataFim.getDate() + conflito.dias_necessarios - 1);
+
+                const dataFimStr = dataFim.toLocaleDateString('pt-BR');
+                const dataInicioStr = new Date(conflito.data_inicio).toLocaleDateString('pt-BR');
+
+                alert(
+                    `❌ Conflito de Agendamento!\n\n` +
+                    `${result.message}\n` +
+                    `Reservado por: ${conflito.agendado_por}\n` +
+                    `Período: ${dataInicioStr} até ${dataFimStr}`
+                );
             } else {
-                const errorData = await response.json();
-                alert(`Erro: ${errorData.error}`);
+                // Outros Erros (400, 503, 500)
+                alert(`Erro ao agendar: ${result.error || 'Erro desconhecido.'}`);
             }
         } catch (error) {
             alert('Erro de conexão com o servidor.');
