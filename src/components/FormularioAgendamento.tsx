@@ -71,7 +71,7 @@ export default function FormularioAgendamento({ onAgendamentoSucesso }: Formular
         }
     };
 
-    const pcs = ['PC 094', 'PC 095', 'PC 083', 'PC 084', 'PC 085'];
+    const pcs = ['PC 082', 'PC 083', 'PC 094', 'PC 095'];
 
     return (
         <form onSubmit={handleSubmit} className="form-card">
