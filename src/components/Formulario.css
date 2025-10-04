@@ -1,3 +1,34 @@
+/* Adicione esta regra no início do seu arquivo Formulario.css */
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+}
+
+/* Regra específica para o input de data no mobile portrait */
+@media (max-width: 640px) and (orientation: portrait) {
+    /* ... (seus estilos existentes para mobile portrait) ... */
+
+    .form-input-modern[type="date"] {
+        /*
+         * Remove qualquer largura fixa ou máxima que possa
+         * estar conflitando. A largura de 100% já é suficiente,
+         * mas reforçar garante a consistência.
+         */
+        width: 100%;
+
+        /*
+         * Aumente o padding para o lado esquerdo para acomodar o ícone,
+         * mas mantenha o padding direito padrão para não interferir
+         * com o ícone nativo do seletor de data.
+         */
+        padding-left: 2.5rem;
+
+        /* Garante que o padding não adicione à largura total */
+        box-sizing: border-box;
+    }
+}
+
 .form-card {
     background-color: white;
     padding: 0.5rem 2.5rem 2.5rem 2.5rem;

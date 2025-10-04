@@ -12,6 +12,7 @@
     "@types/react": "^19.1.12",
     "@types/react-dom": "^19.1.9",
     "@vercel/postgres": "^0.10.0",
+    "dotenv": "^17.2.3",
     "mysql2": "^3.14.3",
     "next": "^15.5.4",
     "react": "^19.1.1",
