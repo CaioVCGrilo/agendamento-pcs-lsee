@@ -149,14 +149,6 @@ export default function FormularioAgendamento({ onAgendamentoSucesso }: Formular
             <div className="form-group-modern">
                 <label htmlFor="dataInicial" className="form-label-modern">Data Inicial</label>
                 <div className="form-input-wrapper">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="input-icon" fill="currentColor" viewBox="0 0 16 16">
-                        <path d="M6 3.5a.5.5 0 0 1 .5-.5h4a.5.5 0 0 1 0 1h-4a.5.5 0 0 1-.5-.5zM7.5 7a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1zM5 8a.5.5 0 0 0-.5.5v2a.5.5 0 0 0 1 0v-2A.5.5 0 0 0 5 8zm2.5-.5a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-1 0v-2a.5.5 0 0 1 .5-.5zM10 7.5a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"/>
-                        <path d="M11 1.5a.5.5 0 0 1 .5-.5h4a.5.5 0 0 1 0 1h-4a.5.5 0 0 1-.5-.5zM12.5 5a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1h-1z"/>
-                        <path d="M3.5 1.5a.5.5 0 0 0-.5-.5h-2a.5.5 0 0 0 0 1h2a.5.5 0 0 0 .5-.5zM4 5a.5.5 0 0 0 0 1h1a.5.5 0 0 0 0-1H4z"/>
-                        <path d="M11 1.5a.5.5 0 0 0 .5-.5h-4a.5.5 0 0 0 0-1h4a.5.5 0 0 0 .5.5zM12.5 5a.5.5 0 0 0 0 1h-1a.5.5 0 0 0 0-1h1z"/>
-                        <path d="M4.5 1.5a.5.5 0 0 0-.5-.5h-2a.5.5 0 0 0 0 1h2a.5.5 0 0 0 .5-.5zM5 5a.5.5 0 0 0 0 1h-1a.5.5 0 0 0 0-1h1z"/>
-                        <path d="M7.5 1.5a.5.5 0 0 0-.5-.5h-2a.5.5 0 0 0 0 1h2a.5.5 0 0 0 .5-.5zM8 5a.5.5 0 0 0 0 1h-1a.5.5 0 0 0 0-1h1z"/>
-                    </svg>
                     <input
                         type="date"
                         id="dataInicial"
