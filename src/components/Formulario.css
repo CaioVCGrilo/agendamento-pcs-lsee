@@ -107,7 +107,7 @@
 
     /* Regra corrigida para o campo de data */
     .form-input-modern[type="date"] {
-        width: 90%;
+        width: 87%;
         box-sizing: border-box;
         padding: 0.75rem 1rem;
     }
