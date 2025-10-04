@@ -90,10 +90,6 @@ export default function HomePage() {
             <div className="main-card">
                 <header className="header">
                     <div className="header-logo-container">
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 16 16" className="w-12 h-12">
-                            <path d="M4 .5a.5.5 0 0 0-1 0V1H2a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V3a2 2 0 0 0-2-2h-1V.5a.5.5 0 0 0-1 0V1H4V.5zm-.5 3h9a.5.5 0 0 0 0-1h-9a.5.5 0 0 0 0 1z"/>
-                            <path d="M1 8v7a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8H1zm-1 0a1 1 0 0 0 1-1h14a1 1 0 0 0 1 1H0z"/>
-                        </svg>
                         <div>
                             <h1 className="header-title">Agendamento de Servidores</h1>
                             <p className="header-subtitle">Laboratório de Sistemas de Energia Elétrica</p>
@@ -137,6 +133,7 @@ export default function HomePage() {
                                             <td data-label="Nº PC">
                     <span className={`pc-tag ${
                         agendamento.pc_numero === 'PC 094' ? 'blue' :
+                            agendamento.pc_numero === 'PC 082' ? 'orange' :
                             agendamento.pc_numero === 'PC 095' ? 'purple' :
                                 'green'
                     }`}>
