@@ -5,28 +5,23 @@
     box-sizing: border-box;
 }
 
-/* Regra específica para o input de data no mobile portrait */
+/* Responsividade: Dispositivos Móveis (Retrato) */
 @media (max-width: 640px) and (orientation: portrait) {
-    /* ... (seus estilos existentes para mobile portrait) ... */
+    /* ... Seus outros estilos para mobile ... */
 
     .form-input-modern[type="date"] {
-        /*
-         * Remove qualquer largura fixa ou máxima que possa
-         * estar conflitando. A largura de 100% já é suficiente,
-         * mas reforçar garante a consistência.
-         */
+        /* Garante que o campo de data tenha a largura total do contêiner */
         width: 100%;
-
-        /*
-         * Aumente o padding para o lado esquerdo para acomodar o ícone,
-         * mas mantenha o padding direito padrão para não interferir
-         * com o ícone nativo do seletor de data.
-         */
+        /* Adiciona o padding esquerdo para o ícone, sem estourar a caixa */
         padding-left: 2.5rem;
-
         /* Garante que o padding não adicione à largura total */
         box-sizing: border-box;
     }
+
+    /* Remova esta regra, pois ela é menos específica e pode causar o problema */
+    /* .form-input-modern, .form-select-modern {
+        padding: 0.75rem 1rem 0.75rem 2.5rem;
+    } */
 }
 
 .form-card {
