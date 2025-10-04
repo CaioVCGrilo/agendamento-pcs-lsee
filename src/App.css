@@ -3,6 +3,13 @@
 /* Fonte */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;800&display=swap');
 
+.footer {
+    text-align: center;
+    padding: 0 0;
+    color: #6b7280; /* cinza médio */
+    font-size: 0.875rem; /* 14px */
+}
+
 /* Estilos globais e de corpo */
 .app-container {
     background-color: #f3f4f6; /* cinza claro */
