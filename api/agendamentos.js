@@ -224,10 +224,20 @@ export async function GET_ALL_AGENDAMENTOS() {
     if (connectionError) return connectionError;
 
     try {
+        // Obtém a data de hoje, formatada para o padrão do banco de dados (YYYY-MM-DD)
+        const today = new Date().toISOString().split('T')[0];
+
         const [agendamentos] = await pool.execute(
-            `SELECT id, DATE_FORMAT(data_inicio, '%Y-%m-%d') AS data_inicio, dias_necessarios, pc_numero, agendado_por
-             FROM agendamentos
-             ORDER BY data_inicio DESC;`
+            `SELECT 
+                id, 
+                DATE_FORMAT(data_inicio, '%Y-%m-%d') AS data_inicio, 
+                dias_necessarios, 
+                pc_numero, 
+                agendado_por
+            FROM agendamentos
+            WHERE DATE_ADD(data_inicio, INTERVAL dias_necessarios - 1 DAY) >= ?
+            ORDER BY data_inicio ASC;`,
+            [today]
         );
 
         return NextResponse.json(agendamentos, { status: 200 });
