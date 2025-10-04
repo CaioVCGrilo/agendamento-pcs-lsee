@@ -4,15 +4,15 @@ import React, { useEffect, useState } from 'react';
 import FormularioAgendamento from './components/FormularioAgendamento';
 import './App.css';
 
-// Função utilitária para calcular a data de término
+// Utility function to calculate the end date
 const calcularDataTermino = (dataInicioStr: string, diasNecessarios: number): string => {
-    // 1. Converte a string YYYY-MM-DD para um objeto Date
-    const data = new Date(dataInicioStr + 'T00:00:00'); // Adiciona T00:00:00 para evitar problemas de fuso horário
+    // 1. Convert the YYYY-MM-DD string to a Date object
+    const data = new Date(dataInicioStr + 'T00:00:00'); // Add T00:00:00 to avoid timezone issues
 
-    // 2. Adiciona o número de dias. Subtrai 1 porque o dia de início já conta.
+    // 2. Add the number of days. Subtract 1 because the start day counts.
     data.setDate(data.getDate() + (diasNecessarios - 1));
 
-    // 3. Formata para o padrão DD/MM/YYYY
+    // 3. Format to DD/MM/YYYY pattern
     const dia = String(data.getDate()).padStart(2, '0');
     const mes = String(data.getMonth() + 1).padStart(2, '0');
     const ano = data.getFullYear();
@@ -85,6 +85,9 @@ export default function HomePage() {
         fetchAgendamentos();
     }, []);
 
+    // Get the current year dynamically for the copyright notice
+    const currentYear = new Date().getFullYear();
+
     return (
         <main className="app-container">
             <div className="main-card">
@@ -127,19 +130,19 @@ export default function HomePage() {
 
                                     return (
                                         <tr key={agendamento.id}>
-                                            {/* Adicione o data-label aqui: */}
                                             <td data-label="Início">{dataInicioFormatada}</td>
                                             <td data-label="Término">{dataTerminoFormatada}</td>
                                             <td data-label="Nº PC">
-                    <span className={`pc-tag ${
-                        agendamento.pc_numero === 'PC 094' ? 'blue' :
-                            agendamento.pc_numero === 'PC 082' ? 'orange' :
-                            agendamento.pc_numero === 'PC 095' ? 'purple' :
-                                'green'
-                    }`}>
-                        {agendamento.pc_numero}
-                    </span>
+                                                <span className={`pc-tag ${
+                                                    agendamento.pc_numero === 'PC 094' ? 'blue' :
+                                                        agendamento.pc_numero === 'PC 082' ? 'orange' :
+                                                            agendamento.pc_numero === 'PC 095' ? 'purple' :
+                                                                'green'
+                                                }`}>
+                                                    {agendamento.pc_numero}
+                                                </span>
                                             </td>
+                                            {/* Corrected the variable name here */}
                                             <td data-label="Agendado por">{agendamento.agendado_por}</td>
                                             <td data-label="Ação">
                                                 <button onClick={() => handleCancelamento(agendamento.id)} className="cancel-button">
@@ -155,6 +158,9 @@ export default function HomePage() {
                     )}
                 </div>
             </div>
+            <footer className="footer">
+                <p>&copy; {currentYear} LSEE - Laboratório de Sistemas de Energia Elétrica. Todos os direitos reservados.</p>
+            </footer>
         </main>
     );
 }
