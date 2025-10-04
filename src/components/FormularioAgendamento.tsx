@@ -169,6 +169,7 @@ export default function FormularioAgendamento({ onAgendamentoSucesso }: Formular
                         value={dataInicial}
                         onChange={(e) => setDataInicial(e.target.value)}
                         className="form-input-modern"
+                        min={getTodayDate()} // <--- AQUI ESTÁ A MUDANÇA
                         required
                     />
                 </div>
