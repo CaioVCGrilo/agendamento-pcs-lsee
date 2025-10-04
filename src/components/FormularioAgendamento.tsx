@@ -144,7 +144,7 @@ export default function FormularioAgendamento({ onAgendamentoSucesso }: Formular
 
     return (
         <form onSubmit={handleSubmit} className="form-card">
-            <h2 className="form-title">Reservar um servidor</h2>
+            <h2 className="form-title">Reservar um Servidor</h2>
 
             <div className="form-group-modern">
                 <label htmlFor="dataInicial" className="form-label-modern">Data Inicial</label>

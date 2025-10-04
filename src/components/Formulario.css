@@ -79,7 +79,7 @@
 
 .form-button-modern:hover {
     transform: translateY(-2px);
-    box-shadow: 6px 10px -1px rgba(0, 0, 0, 0.15), 0 3px 6px -1px rgba(0, 0, 0, 0.08);
+    box-shadow: 6px 10px 1px rgba(0, 0, 0, 0.15), 0 3px 6px -1px rgba(0, 0, 0, 0.08);
 }
 
 /* --- */
