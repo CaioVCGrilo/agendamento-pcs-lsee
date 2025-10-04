@@ -1,4 +1,3 @@
-/* Adicione esta regra no início do seu arquivo Formulario.css */
 *,
 *::before,
 *::after {
@@ -80,7 +79,7 @@
 
 .form-button-modern:hover {
     transform: translateY(-2px);
-    box-shadow: 0 6px 10px -1px rgba(0, 0, 0, 0.15), 0 3px 6px -1px rgba(0, 0, 0, 0.08);
+    box-shadow: 6px 10px -1px rgba(0, 0, 0, 0.15), 0 3px 6px -1px rgba(0, 0, 0, 0.08);
 }
 
 /* --- */
@@ -106,13 +105,11 @@
         margin-bottom: 0.5rem;
     }
 
+    /* Regra corrigida para o campo de data */
     .form-input-modern[type="date"] {
-        /* Garante que o campo de data tenha a largura total do contêiner */
         width: 100%;
-        /* Adiciona o padding esquerdo para o ícone, sem estourar a caixa */
-        padding-left: 2.5rem;
-        /* Garante que o padding não adicione à largura total */
         box-sizing: border-box;
+        padding: 0.75rem 1rem;
     }
 
     .input-icon {
@@ -120,26 +117,24 @@
         width: 1rem;
         height: 1rem;
     }
-
-    /* Outras regras de responsividade que você tem */
 }
 
 /* Responsividade: Dispositivos Móveis (Paisagem) */
 @media (max-width: 900px) and (orientation: landscape) {
     .form-card {
-        padding: 1.5rem 2rem; /* Padding ajustado para telas mais largas */
+        padding: 1.5rem 2rem;
     }
 
     .form-title {
-        font-size: 1.25rem; /* Título um pouco menor */
+        font-size: 1.25rem;
     }
 
     .form-input-modern,
     .form-select-modern {
-        padding: 0.5rem 1rem 0.5rem 2.5rem; /* Reduz a altura dos inputs */
+        padding: 0.5rem 1rem 0.5rem 2.5rem;
     }
 
     .form-button-modern {
-        padding: 0.75rem; /* Botão um pouco mais compacto */
+        padding: 0.75rem;
     }
 }
