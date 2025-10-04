@@ -17,16 +17,17 @@ const pool = mysql.createPool({
     // ssl: { rejectUnauthorized: true },
 });
 
+// IP de exceção definido como constante para fácil manutenção
+const LSEE_EXCEPTION_IP = '143.107.235.10';
+
 // Função para auto-excluir agendamentos passados
 async function autoDeleteOldReservations() {
     console.log("Executando limpeza de agendamentos antigos...");
 
-    // Calcula a data de ontem para garantir que a limpeza não afete agendamentos do dia atual.
     const yesterday = new Date();
     yesterday.setDate(yesterday.getDate() - 1);
     const yesterdayISO = yesterday.toISOString().split('T')[0];
 
-    // Query para deletar agendamentos onde a data de fim (data_inicio + dias_necessarios) é menor que hoje
     const deleteQuery = `
         DELETE FROM agendamentos
         WHERE DATE_ADD(data_inicio, INTERVAL dias_necessarios DAY) <= ?;
@@ -44,7 +45,6 @@ async function autoDeleteOldReservations() {
 async function initializeDatabase() {
     console.log("Tentando inicializar o banco de dados e criar a tabela 'agendamentos'...");
 
-    // Query para criar a tabela com o comando IF NOT EXISTS
     const createTableQuery = `
         CREATE TABLE IF NOT EXISTS agendamentos (
                                                     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -94,27 +94,23 @@ export async function GET_DISPONIVEIS(request) {
         const diasNecessarios = parseInt(searchParams.get('diasNecessarios'), 10);
 
         if (!dataInicio || !diasNecessarios || diasNecessarios < 1) {
-            // Retorna todos os PCs se os parâmetros estiverem incompletos/inválidos
             return NextResponse.json(TODOS_PCS, { status: 200 });
         }
 
-        // 1. Calcula a data de fim para a consulta
         const dataFimReserva = new Date(dataInicio);
         dataFimReserva.setDate(dataFimReserva.getDate() + diasNecessarios - 1);
         const dataFimISO = dataFimReserva.toISOString().split('T')[0];
 
-        // 2. Consulta: Encontra todos os PCs OCUPADOS no período
         const occupiedQuery = `
             SELECT DISTINCT pc_numero
             FROM agendamentos
             WHERE NOT (
                 data_inicio > ? OR DATE_ADD(data_inicio, INTERVAL dias_necessarios - 1 DAY) < ?
-            );
+                );
         `;
 
         const [occupiedResult] = await pool.execute(occupiedQuery, [dataFimISO, dataInicio]);
 
-        // 3. Filtra os PCs disponíveis
         const occupiedPcs = occupiedResult.map(row => row.pc_numero);
         const availablePcs = TODOS_PCS.filter(pc => !occupiedPcs.includes(pc));
 
@@ -122,24 +118,41 @@ export async function GET_DISPONIVEIS(request) {
 
     } catch (error) {
         console.error('Erro ao buscar PCs disponíveis (GET_DISPONIVEIS):', error);
-        // Se a API falhar (ex: DB indisponível), ela deve retornar um erro, e o front-end
-        // deve usar o fallback (TODOS_PCS), mas aqui o erro de infraestrutura é mais informativo.
         return NextResponse.json({ error: 'Erro ao verificar disponibilidade. Cheque a conexão com o DB.' }, { status: 503 });
     }
 }
 
-// ... (O restante das rotas POST, GET_ALL_AGENDAMENTOS e DELETE permanecem iguais)
 export async function POST(request) {
     const connectionError = checkDbConnection();
     if (connectionError) return connectionError;
 
     try {
-        const { dataInicial, diasNecessarios, pc, nome, pin } = await request.json();
+        const { dataInicial, diasNecessarios, pc, nome, pin, codigo_lsee } = await request.json();
+
+        // Obtém o endereço IP do cliente a partir dos cabeçalhos da requisição
+        const clientIP = request.headers.get('x-forwarded-for') || request.ip;
+
+        // Define o código LSEE a ser verificado
+        const lseeCode = process.env.LSEE_CODE;
+        let isPinRequired = true;
+
+        if (clientIP === LSEE_EXCEPTION_IP) {
+            console.log(`Reserva via IP autorizado (${clientIP}). O PIN não será validado.`);
+            isPinRequired = false;
+        } else {
+            if (!lseeCode || codigo_lsee !== lseeCode) {
+                return NextResponse.json(
+                    { error: 'Código LSEE incorreto. Acesso não autorizado.' },
+                    { status: 401 }
+                );
+            }
+            console.log(`Código LSEE validado com sucesso. Prosseguindo com a reserva.`);
+        }
 
         const dataInicio = dataInicial;
         const dias = parseInt(diasNecessarios, 10);
 
-        if (!dataInicio || !dias || !pc || !nome || !pin) {
+        if (!dataInicio || !dias || !pc || !nome || (isPinRequired && !pin)) {
             return NextResponse.json({ error: 'Dados incompletos. Todos os campos são obrigatórios.' }, { status: 400 });
         }
 
@@ -161,7 +174,6 @@ export async function POST(request) {
 
         if (conflicts.length > 0) {
             const conflito = conflicts[0];
-
             const dataFimConflito = new Date(conflito.data_inicio);
             dataFimConflito.setDate(dataFimConflito.getDate() + conflito.dias_necessarios);
 
@@ -176,14 +188,20 @@ export async function POST(request) {
             }, { status: 409 });
         }
 
-        const hashedPin = crypto.createHash('md5').update(pin).digest('hex');
+        let hashedPin = '';
+        if (isPinRequired) {
+            hashedPin = crypto.createHash('md5').update(pin).digest('hex');
+        } else {
+            // Se o PIN não for necessário, armazena um hash fixo.
+            hashedPin = '00000000000000000000000000000000';
+        }
 
         const insertQuery = `
             INSERT INTO agendamentos (
-                data_inicio, 
-                dias_necessarios, 
-                pc_numero, 
-                agendado_por, 
+                data_inicio,
+                dias_necessarios,
+                pc_numero,
+                agendado_por,
                 pin
             ) VALUES (?, ?, ?, ?, ?);
         `;
@@ -208,7 +226,7 @@ export async function GET_ALL_AGENDAMENTOS() {
     try {
         const [agendamentos] = await pool.execute(
             `SELECT id, DATE_FORMAT(data_inicio, '%Y-%m-%d') AS data_inicio, dias_necessarios, pc_numero, agendado_por
-             FROM agendamentos 
+             FROM agendamentos
              ORDER BY data_inicio DESC;`
         );
 
@@ -229,16 +247,26 @@ export async function DELETE(request) {
         const id = searchParams.get('id');
         const { pinDigitado } = await request.json();
 
-        if (!id || !pinDigitado) {
-            return NextResponse.json({ error: 'ID e PIN de liberação são obrigatórios.' }, { status: 400 });
+        const clientIP = request.headers.get('x-forwarded-for') || request.ip;
+        let deleteQuery;
+        let queryParams;
+
+        if (clientIP === LSEE_EXCEPTION_IP) {
+            // Se a requisição vem do IP autorizado, o PIN não é necessário.
+            console.log(`Cancelamento via IP autorizado (${clientIP}). O PIN não será validado.`);
+            deleteQuery = 'DELETE FROM agendamentos WHERE id = ?';
+            queryParams = [id];
+        } else {
+            // Caso contrário, o PIN é obrigatório para o cancelamento.
+            if (!id || !pinDigitado) {
+                return NextResponse.json({ error: 'ID e PIN de liberação são obrigatórios.' }, { status: 400 });
+            }
+            const hashedPinDigitado = crypto.createHash('md5').update(pinDigitado).digest('hex');
+            deleteQuery = 'DELETE FROM agendamentos WHERE id = ? AND pin = ?';
+            queryParams = [id, hashedPinDigitado];
         }
 
-        const hashedPinDigitado = crypto.createHash('md5').update(pinDigitado).digest('hex');
-
-        const [deleteResult] = await pool.execute(
-            'DELETE FROM agendamentos WHERE id = ? AND pin = ?',
-            [id, hashedPinDigitado]
-        );
+        const [deleteResult] = await pool.execute(deleteQuery, queryParams);
 
         if (deleteResult.affectedRows === 0) {
             return NextResponse.json({ error: 'PIN ou ID do agendamento incorreto. Cancelamento não autorizado.' }, { status: 403 });
