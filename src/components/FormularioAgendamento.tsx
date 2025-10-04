@@ -13,7 +13,6 @@ const getTodayDate = () => {
 // Lista de todos os PCs no laboratório (MESMA LISTA DO BACKEND)
 const TODOS_PCS = ['PC 082', 'PC 083', 'PC 094', 'PC 095'];
 
-// Adicione a interface para as props
 interface FormularioAgendamentoProps {
     onAgendamentoSucesso: () => void;
 }
@@ -25,15 +24,11 @@ export default function FormularioAgendamento({ onAgendamentoSucesso }: Formular
     const [nome, setNome] = useState('');
     const [pin, setPin] = useState('');
 
-    // Novos estados para gerenciar a disponibilidade
     const [pcsDisponiveis, setPcsDisponiveis] = useState<string[]>(TODOS_PCS);
     const [loadingDisponibilidade, setLoadingDisponibilidade] = useState(false);
 
-
-    // EFEITO: Monitora mudanças na data e dias para buscar PCs disponíveis
     useEffect(() => {
         const fetchDisponibilidade = async () => {
-            // Verifica se os inputs são válidos para evitar requisições desnecessárias
             if (!dataInicial || diasNecessarios === '0' || !diasNecessarios || parseInt(diasNecessarios) > 15) {
                 setPcsDisponiveis(TODOS_PCS);
                 return;
@@ -41,20 +36,14 @@ export default function FormularioAgendamento({ onAgendamentoSucesso }: Formular
 
             setLoadingDisponibilidade(true);
             try {
-                // Chama a nova API de verificação de disponibilidade
                 const response = await fetch(`/api/agendamentos?dataInicial=${dataInicial}&diasNecessarios=${diasNecessarios}`);
-
                 if (response.ok) {
                     const availablePcs = await response.json();
                     setPcsDisponiveis(availablePcs);
-
-                    // Se o PC selecionado não estiver mais disponível, limpa a seleção
                     if (pc && !availablePcs.includes(pc)) {
                         setPc('');
                     }
-
                 } else {
-                    // Em caso de falha da API, retorna à lista completa e mostra erro no console
                     setPcsDisponiveis(TODOS_PCS);
                     console.error("Falha ao buscar disponibilidade. Usando lista completa como fallback.");
                 }
@@ -66,15 +55,13 @@ export default function FormularioAgendamento({ onAgendamentoSucesso }: Formular
             }
         };
 
-        // Adiciona um pequeno delay (500ms) para evitar muitas requisições rápidas ao digitar
         const timer = setTimeout(() => {
             fetchDisponibilidade();
         }, 500);
 
-        return () => clearTimeout(timer); // Limpa o timer no próximo ciclo
-    }, [dataInicial, diasNecessarios, pc]); // A dependência 'pc' garante que a seleção seja limpa
+        return () => clearTimeout(timer);
+    }, [dataInicial, diasNecessarios, pc]);
 
-    // Determina o texto de status de disponibilidade
     const getDisponibilidadeStatus = () => {
         if (loadingDisponibilidade) return ' (Verificando...)';
         if (pcsDisponiveis.length === 0) return ' (Nenhum disponível)';
@@ -82,58 +69,84 @@ export default function FormularioAgendamento({ onAgendamentoSucesso }: Formular
         return ` (${pcsDisponiveis.length} disponíveis)`;
     };
 
+    // Função de envio separada para ser reutilizada
+    const sendReservation = async (data) => {
+        const response = await fetch('/api/agendamentos', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data),
+        });
+
+        return response;
+    };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
 
-        // 1. Verificação final de disponibilidade antes de submeter
         if (pcsDisponiveis.length > 0 && !pcsDisponiveis.includes(pc)) {
             alert(`O PC ${pc} não está disponível para este período. Por favor, selecione uma opção válida.`);
             return;
         }
 
-        // 2. Verifica se o usuário pode tentar agendar (se há algo disponível)
         if (pcsDisponiveis.length === 0) {
             alert(`Nenhum PC disponível para o período selecionado. Por favor, ajuste a data ou os dias.`);
             return;
         }
 
+        // Dados iniciais para a requisição
+        const reservationData = { dataInicial, diasNecessarios, pc, nome, pin };
 
         try {
-            const response = await fetch('/api/agendamentos', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ dataInicial, diasNecessarios, pc, nome, pin }),
-            });
+            // Tenta fazer a requisição inicial sem o código de acesso
+            const response = await sendReservation(reservationData);
 
-            const result = await response.json();
+            // Se o backend exigir o código (status 401), solicita ao usuário
+            if (response.status === 401) {
+                const codigoLsee = prompt("Você está fora da rede LSEE. Por favor, insira o código de acesso:");
+                if (!codigoLsee) {
+                    alert("A reserva foi cancelada. O código de acesso é obrigatório.");
+                    return;
+                }
 
-            if (response.ok) {
+                // Tenta fazer a requisição novamente, agora com o código
+                const newResponse = await sendReservation({ ...reservationData, codigo_lsee: codigoLsee });
+                const newResult = await newResponse.json();
+
+                if (newResponse.ok) {
+                    alert('Agendamento criado com sucesso!');
+                    onAgendamentoSucesso();
+                    // Limpa os estados do formulário
+                    setDataInicial(getTodayDate());
+                    setDiasNecessarios('1');
+                    setPc('');
+                    setNome('');
+                    setPin('');
+                } else {
+                    alert(`Erro ao agendar: ${newResult.error || 'Erro desconhecido.'}`);
+                }
+            } else if (response.ok) {
+                // Se a primeira requisição foi bem-sucedida (IP autorizado)
                 alert('Agendamento criado com sucesso!');
+                onAgendamentoSucesso();
+                // Limpa os estados do formulário
                 setDataInicial(getTodayDate());
                 setDiasNecessarios('1');
                 setPc('');
                 setNome('');
                 setPin('');
-                onAgendamentoSucesso();
             } else if (response.status === 409) {
-                // TRATAMENTO DE CONFLITO 409 (Erro já validado na API)
+                const result = await response.json();
                 const conflito = result.conflito;
-
                 const dataFim = new Date(conflito.data_inicio);
                 dataFim.setDate(dataFim.getDate() + conflito.dias_necessarios);
-
-                const dataFimStr = dataFim.toLocaleDateString('pt-BR');
-                const dataInicioStr = new Date(conflito.data_inicio).toLocaleDateString('pt-BR');
-
                 alert(
                     `❌ Conflito de Agendamento!\n\n` +
                     `${result.message}\n` +
                     `Reservado por: ${conflito.agendado_por}\n` +
-                    `Período: ${dataInicioStr} até ${dataFimStr}`
+                    `Período: ${new Date(conflito.data_inicio).toLocaleDateString('pt-BR')} até ${dataFim.toLocaleDateString('pt-BR')}`
                 );
             } else {
-                // Outros Erros (400, 503, 500)
+                const result = await response.json();
                 alert(`Erro ao agendar: ${result.error || 'Erro desconhecido.'}`);
             }
         } catch (error) {
@@ -145,7 +158,6 @@ export default function FormularioAgendamento({ onAgendamentoSucesso }: Formular
     return (
         <form onSubmit={handleSubmit} className="form-card">
             <h2 className="form-title">Reservar um Servidor</h2>
-
             <div className="form-group-modern">
                 <label htmlFor="dataInicial" className="form-label-modern">Data Inicial</label>
                 <div className="form-input-wrapper">
@@ -159,7 +171,6 @@ export default function FormularioAgendamento({ onAgendamentoSucesso }: Formular
                     />
                 </div>
             </div>
-
             <div className="form-group-modern">
                 <label htmlFor="diasNecessarios" className="form-label-modern">Dias Necessários</label>
                 <div className="form-input-wrapper">
@@ -178,7 +189,6 @@ export default function FormularioAgendamento({ onAgendamentoSucesso }: Formular
                     />
                 </div>
             </div>
-
             <div className="form-group-modern">
                 <label htmlFor="pc" className="form-label-modern">Número do PC
                     {getDisponibilidadeStatus()}
@@ -205,7 +215,6 @@ export default function FormularioAgendamento({ onAgendamentoSucesso }: Formular
                     </select>
                 </div>
             </div>
-
             <div className="form-group-modern">
                 <label htmlFor="nome" className="form-label-modern">Agendado por</label>
                 <div className="form-input-wrapper">
@@ -222,7 +231,6 @@ export default function FormularioAgendamento({ onAgendamentoSucesso }: Formular
                     />
                 </div>
             </div>
-
             <div className="form-group-modern">
                 <label htmlFor="pin" className="form-label-modern">PIN de Liberação</label>
                 <div className="form-input-wrapper">
@@ -240,7 +248,6 @@ export default function FormularioAgendamento({ onAgendamentoSucesso }: Formular
                     />
                 </div>
             </div>
-
             <button
                 type="submit"
                 className="form-button-modern"
