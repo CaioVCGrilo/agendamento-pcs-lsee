@@ -1,6 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import './Formulario.css';
 
+// Defina a interface para a estrutura de dados da reserva
+interface ReservationData {
+    dataInicial: string;
+    diasNecessarios: string;
+    pc: string;
+    nome: string;
+    pin: string;
+    codigo_lsee?: string; // O '?' indica que este campo é opcional
+}
+
 // Função para formatar a data de hoje para o formato YYYY-MM-DD
 const getTodayDate = () => {
     const today = new Date();
@@ -69,14 +79,13 @@ export default function FormularioAgendamento({ onAgendamentoSucesso }: Formular
         return ` (${pcsDisponiveis.length} disponíveis)`;
     };
 
-    // Função de envio separada para ser reutilizada
-    const sendReservation = async (data) => {
+    // Função de envio separada para ser reutilizada, agora com o tipo 'ReservationData'
+    const sendReservation = async (data: ReservationData) => {
         const response = await fetch('/api/agendamentos', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(data),
         });
-
         return response;
     };
 
@@ -93,14 +102,11 @@ export default function FormularioAgendamento({ onAgendamentoSucesso }: Formular
             return;
         }
 
-        // Dados iniciais para a requisição
         const reservationData = { dataInicial, diasNecessarios, pc, nome, pin };
 
         try {
-            // Tenta fazer a requisição inicial sem o código de acesso
             const response = await sendReservation(reservationData);
 
-            // Se o backend exigir o código (status 401), solicita ao usuário
             if (response.status === 401) {
                 const codigoLsee = prompt("Você está fora da rede LSEE. Por favor, insira o código de acesso:");
                 if (!codigoLsee) {
@@ -108,14 +114,12 @@ export default function FormularioAgendamento({ onAgendamentoSucesso }: Formular
                     return;
                 }
 
-                // Tenta fazer a requisição novamente, agora com o código
                 const newResponse = await sendReservation({ ...reservationData, codigo_lsee: codigoLsee });
                 const newResult = await newResponse.json();
 
                 if (newResponse.ok) {
                     alert('Agendamento criado com sucesso!');
                     onAgendamentoSucesso();
-                    // Limpa os estados do formulário
                     setDataInicial(getTodayDate());
                     setDiasNecessarios('1');
                     setPc('');
@@ -125,10 +129,8 @@ export default function FormularioAgendamento({ onAgendamentoSucesso }: Formular
                     alert(`Erro ao agendar: ${newResult.error || 'Erro desconhecido.'}`);
                 }
             } else if (response.ok) {
-                // Se a primeira requisição foi bem-sucedida (IP autorizado)
                 alert('Agendamento criado com sucesso!');
                 onAgendamentoSucesso();
-                // Limpa os estados do formulário
                 setDataInicial(getTodayDate());
                 setDiasNecessarios('1');
                 setPc('');
