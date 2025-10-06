@@ -239,7 +239,7 @@ export default function FormularioAgendamento({ onAgendamentoSucesso }: Formular
                 </div>
             </div>
             <div className="form-group-modern">
-                <label htmlFor="pin" className="form-label-modern">PIN de Liberação</label>
+                <label htmlFor="pin" className="form-label-modern">PIN para cancelar agendamento</label>
                 <div className="form-input-wrapper">
                     <svg xmlns="http://www.w3.org/2000/svg" className="input-icon" fill="currentColor" viewBox="0 0 16 16">
                         <path d="M3.5 11.5a.5.5 0 0 1 0-1h9a.5.5 0 0 1 0 1h-9zm-1-3a.5.5 0 0 1 0-1h11a.5.5 0 0 1 0 1h-11zm-1-3a.5.5 0 0 1 0-1h13a.5.5 0 0 1 0 1h-13z"/>
