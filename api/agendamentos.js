@@ -259,18 +259,18 @@ export async function DELETE(request) {
         let deleteQuery;
         let queryParams;
 
-        if (clientIP === LSEE_EXCEPTION_IP) {
-            console.log(`Cancelamento via IP autorizado (${clientIP}). O PIN não será validado.`);
-            deleteQuery = 'DELETE FROM agendamentos WHERE id = ?';
-            queryParams = [id];
-        } else {
-            if (!id || !pinDigitado) {
-                return NextResponse.json({ error: 'ID e PIN de liberação são obrigatórios.' }, { status: 400 });
-            }
-            const hashedPinDigitado = crypto.createHash('md5').update(pinDigitado).digest('hex');
-            deleteQuery = 'DELETE FROM agendamentos WHERE id = ? AND pin = ?';
-            queryParams = [id, hashedPinDigitado];
+        //if (clientIP === LSEE_EXCEPTION_IP) {
+        //    console.log(`Cancelamento via IP autorizado (${clientIP}). O PIN não será validado.`);
+        //    deleteQuery = 'DELETE FROM agendamentos WHERE id = ?';
+        //    queryParams = [id];
+        //} else {
+        if (!id || !pinDigitado) {
+            return NextResponse.json({ error: 'ID e PIN de liberação são obrigatórios.' }, { status: 400 });
         }
+        const hashedPinDigitado = crypto.createHash('md5').update(pinDigitado).digest('hex');
+        deleteQuery = 'DELETE FROM agendamentos WHERE id = ? AND pin = ?';
+        queryParams = [id, hashedPinDigitado];
+        //}
 
         const [deleteResult] = await pool.execute(deleteQuery, queryParams);
 
