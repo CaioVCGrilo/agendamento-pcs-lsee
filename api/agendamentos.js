@@ -192,7 +192,8 @@ export async function POST(request) {
         if (isPinRequired) {
             hashedPin = crypto.createHash('md5').update(pin).digest('hex');
         } else {
-            hashedPin = '00000000000000000000000000000000';
+            hashedPin = crypto.createHash('md5').update(pin).digest('hex');
+            //hashedPin = '00000000000000000000000000000000';
         }
 
         const insertQuery = `
