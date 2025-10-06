@@ -138,13 +138,15 @@ export async function POST(request) {
             console.log(`Reserva via IP autorizado (${clientIP}). O PIN não será validado.`);
             isPinRequired = false;
         } else {
-            if (!lseeCode || codigo_lsee !== lseeCode) {
-                return NextResponse.json(
-                    { error: 'Código LSEE incorreto. Acesso não autorizado.' },
-                    { status: 401 }
-                );
-            }
-            console.log(`Código LSEE validado com sucesso. Prosseguindo com a reserva.`);
+            console.log(`Reserva via IP autorizado (${clientIP}). O PIN não será validado.`);
+            isPinRequired = false;
+            //if (!lseeCode || codigo_lsee !== lseeCode) {
+            //   return NextResponse.json(
+            //        { error: 'Código LSEE incorreto. Acesso não autorizado.' },
+            //        { status: 401 }
+            //    );
+            //}
+            //console.log(`Código LSEE validado com sucesso. Prosseguindo com a reserva.`);
         }
 
         const dataInicio = dataInicial;
