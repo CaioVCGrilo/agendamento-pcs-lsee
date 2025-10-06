@@ -162,7 +162,7 @@ export default function FormularioAgendamento({ onAgendamentoSucesso }: Formular
         <form onSubmit={handleSubmit} className="form-card">
             <h2 className="form-title">Reservar um Servidor</h2>
             <div className="form-group-modern">
-                <label htmlFor="dataInicial" className="form-label-modern">Data Inicial</label>
+                <label htmlFor="dataInicial" className="form-label-modern">Data inicial</label>
                 <div className="form-input-wrapper">
                     <svg xmlns="http://www.w3.org/2000/svg" className="input-icon" fill="currentColor" viewBox="0 0 16 16">
                         <path d="M3.5 0a.5.5 0 0 1 .5.5V1h8V.5a.5.5 0 0 1 1 0V1h1a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V3a2 2 0 0 1 2-2h1V.5a.5.5 0 0 1 .5-.5zM1 4v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V4H1z"/>
@@ -179,7 +179,7 @@ export default function FormularioAgendamento({ onAgendamentoSucesso }: Formular
                 </div>
             </div>
             <div className="form-group-modern">
-                <label htmlFor="diasNecessarios" className="form-label-modern">Dias Necessários</label>
+                <label htmlFor="diasNecessarios" className="form-label-modern">Dias necessários</label>
                 <div className="form-input-wrapper">
                     <svg xmlns="http://www.w3.org/2000/svg" className="input-icon" fill="currentColor" viewBox="0 0 16 16">
                         <path d="M3.5 0a.5.5 0 0 1 .5.5V1h8V.5a.5.5 0 0 1 1 0V1h1a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V3a2 2 0 0 1 2-2h1V.5a.5.5 0 0 1 .5-.5zM1 4v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V4H1z"/>
