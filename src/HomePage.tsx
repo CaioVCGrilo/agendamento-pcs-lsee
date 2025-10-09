@@ -7,16 +7,11 @@ import './App.css';
 // Utility function to calculate the end date
 const calcularDataTermino = (dataInicioStr: string, diasNecessarios: number): string => {
     // 1. Convert the YYYY-MM-DD string to a Date object
-    const data = new Date(dataInicioStr + 'T00:00:00'); // Add T00:00:00 to avoid timezone issues
-
-    // 2. Add the number of days. Subtract 1 because the start day counts.
+    const data = new Date(dataInicioStr + 'T00:00:00');
     data.setDate(data.getDate() + (diasNecessarios - 1));
-
-    // 3. Format to DD/MM/YYYY pattern
     const dia = String(data.getDate()).padStart(2, '0');
     const mes = String(data.getMonth() + 1).padStart(2, '0');
     const ano = data.getFullYear();
-
     return `${dia}/${mes}/${ano}`;
 };
 
