@@ -219,7 +219,7 @@ export async function GET_ALL_AGENDAMENTOS() {
                  pc_numero,
                  agendado_por
              FROM agendamentos
-             WHERE DATE_ADD(data_inicio, INTERVAL dias_necessarios - 1 DAY) >= ?
+             WHERE DATE_ADD(data_inicio, INTERVAL dias_necessarios - 0 DAY) >= ?
              ORDER BY data_inicio ASC;`,
             [today]
         );
