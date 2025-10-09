@@ -8,7 +8,7 @@ import './App.css';
 const calcularDataTermino = (dataInicioStr: string, diasNecessarios: number): string => {
     // 1. Convert the YYYY-MM-DD string to a Date object
     const data = new Date(dataInicioStr + 'T00:00:00');
-    data.setDate(data.getDate() + (diasNecessarios - 1));
+    data.setDate(data.getDate() + (diasNecessarios));
     const dia = String(data.getDate()).padStart(2, '0');
     const mes = String(data.getMonth() + 1).padStart(2, '0');
     const ano = data.getFullYear();
