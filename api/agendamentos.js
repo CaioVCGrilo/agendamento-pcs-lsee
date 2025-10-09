@@ -20,9 +20,9 @@ async function autoDeleteOldReservations() {
     yesterday.setDate(yesterday.getDate() - 1);
     const yesterdayISO = yesterday.toISOString().split('T')[0];
     const deleteQuery = `
-        DELETE FROM agendamentos
-        WHERE DATE_ADD(data_inicio, INTERVAL dias_necessarios - 1 DAY) < ?;
-    `;
+        DELETE FROM agendamentos
+        WHERE DATE_ADD(data_inicio, INTERVAL dias_necessarios - 1 DAY) < ?;
+    `;
 
     try {
         const [result] = await pool.execute(deleteQuery, [yesterdayISO]);
@@ -35,16 +35,16 @@ async function autoDeleteOldReservations() {
 async function initializeDatabase() {
     console.log("Tentando inicializar o banco de dados e criar a tabela 'agendamentos'...");
     const createTableQuery = `
-        CREATE TABLE IF NOT EXISTS agendamentos (
-                                                    id INT AUTO_INCREMENT PRIMARY KEY,
-                                                    data_inicio DATE NOT NULL,
-                                                    dias_necessarios INT NOT NULL,
-                                                    pc_numero VARCHAR(50) NOT NULL,
-            agendado_por VARCHAR(100) NOT NULL,
-            pin VARCHAR(32) NOT NULL,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            );
-    `;
+        CREATE TABLE IF NOT EXISTS agendamentos (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            data_inicio DATE NOT NULL,
+            dias_necessarios INT NOT NULL,
+            pc_numero VARCHAR(50) NOT NULL,
+            agendado_por VARCHAR(100) NOT NULL,
+            pin VARCHAR(32) NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+    `;
 
     try {
         await pool.execute(createTableQuery);
@@ -55,7 +55,7 @@ async function initializeDatabase() {
 }
 
 initializeDatabase();
-autoDeleteOldReservations();
+//autoDeleteOldReservations();
 
 function checkDbConnection() {
     if (!process.env.MYSQL_HOST) {
@@ -86,13 +86,12 @@ export async function GET_DISPONIVEIS(request) {
         dataFimReserva.setDate(dataFimReserva.getDate() + diasNecessarios - 1);
         const dataFimISO = dataFimReserva.toISOString().split('T')[0];
 
-        // Lógica de conflito: o intervalo existente começa antes do fim do novo E o novo começa antes do fim do existente.
         const occupiedQuery = `
-            SELECT DISTINCT pc_numero
-            FROM agendamentos
-            WHERE
-              data_inicio <= ? AND DATE_ADD(data_inicio, INTERVAL dias_necessarios - 1 DAY) >= ?;
-        `;
+            SELECT DISTINCT pc_numero
+            FROM agendamentos
+            WHERE
+                data_inicio <= ? AND DATE_ADD(data_inicio, INTERVAL dias_necessarios - 1 DAY) >= ?;
+        `;
 
         const [occupiedResult] = await pool.execute(occupiedQuery, [dataFimISO, dataInicio]);
         const occupiedPcs = occupiedResult.map(row => row.pc_numero);
@@ -113,22 +112,18 @@ export async function POST(request) {
     try {
         const { dataInicial, diasNecessarios, pc, nome, pin, codigo_lsee } = await request.json();
 
-        // Obtém a data atual sem o horário para comparação
         const today = new Date();
         today.setHours(0, 0, 0, 0);
 
-        // Converte a data inicial da requisição para um objeto Date
         const requestDate = new Date(dataInicial + 'T00:00:00');
         requestDate.setHours(0, 0, 0, 0);
 
-        // --- VALIDAÇÃO DE DATA ---
         if (requestDate < today) {
             return NextResponse.json(
                 { error: 'Não é possível agendar para uma data que já passou.' },
                 { status: 400 }
             );
         }
-        // --- FIM DA VALIDAÇÃO ---
 
         const clientIP = request.headers.get('x-forwarded-for') || request.ip;
         const lseeCode = process.env.LSEE_CODE;
@@ -140,13 +135,6 @@ export async function POST(request) {
         } else {
             console.log(`Reserva via IP autorizado (${clientIP}). O PIN não será validado.`);
             isPinRequired = false;
-            //if (!lseeCode || codigo_lsee !== lseeCode) {
-            //   return NextResponse.json(
-            //        { error: 'Código LSEE incorreto. Acesso não autorizado.' },
-            //        { status: 401 }
-            //    );
-            //}
-            //console.log(`Código LSEE validado com sucesso. Prosseguindo com a reserva.`);
         }
 
         const dataInicio = dataInicial;
@@ -160,14 +148,13 @@ export async function POST(request) {
         dataFimReserva.setDate(dataFimReserva.getDate() + dias - 1);
         const dataFimISO = dataFimReserva.toISOString().split('T')[0];
 
-        // Lógica de conflito: o intervalo existente começa antes do fim do novo E o novo começa antes do fim do existente.
         const conflictQuery = `
-            SELECT id, data_inicio, dias_necessarios, agendado_por
-            FROM agendamentos
-            WHERE pc_numero = ?
-              AND data_inicio <= ? AND DATE_ADD(data_inicio, INTERVAL dias_necessarios - 1 DAY) >= ?
-                LIMIT 1;
-        `;
+            SELECT id, data_inicio, dias_necessarios, agendado_por
+            FROM agendamentos
+            WHERE pc_numero = ?
+              AND data_inicio <= ? AND DATE_ADD(data_inicio, INTERVAL dias_necessarios - 1 DAY) >= ?
+                LIMIT 1;
+        `;
 
         const [conflicts] = await pool.execute(conflictQuery, [pc, dataFimISO, dataInicio]);
 
@@ -192,18 +179,17 @@ export async function POST(request) {
             hashedPin = crypto.createHash('md5').update(pin).digest('hex');
         } else {
             hashedPin = crypto.createHash('md5').update(pin).digest('hex');
-            //hashedPin = '00000000000000000000000000000000';
         }
 
         const insertQuery = `
-            INSERT INTO agendamentos (
-                data_inicio,
-                dias_necessarios,
-                pc_numero,
-                agendado_por,
-                pin
-            ) VALUES (?, ?, ?, ?, ?);
-        `;
+            INSERT INTO agendamentos (
+                data_inicio,
+                dias_necessarios,
+                pc_numero,
+                agendado_por,
+                pin
+            ) VALUES (?, ?, ?, ?, ?);
+        `;
 
         const [result] = await pool.execute(insertQuery, [dataInicial, dias, pc, nome, hashedPin]);
 
@@ -227,14 +213,14 @@ export async function GET_ALL_AGENDAMENTOS() {
 
         const [agendamentos] = await pool.execute(
             `SELECT
-                 id,
-                 DATE_FORMAT(data_inicio, '%Y-%m-%d') AS data_inicio,
-                 dias_necessarios,
-                 pc_numero,
-                 agendado_por
-             FROM agendamentos
-             WHERE DATE_ADD(data_inicio, INTERVAL dias_necessarios - 1 DAY) >= ?
-             ORDER BY data_inicio ASC;`,
+                 id,
+                 DATE_FORMAT(data_inicio, '%Y-%m-%d') AS data_inicio,
+                 dias_necessarios,
+                 pc_numero,
+                 agendado_por
+             FROM agendamentos
+             WHERE DATE_ADD(data_inicio, INTERVAL dias_necessarios - 1 DAY) >= ?
+             ORDER BY data_inicio ASC;`,
             [today]
         );
 
@@ -259,18 +245,12 @@ export async function DELETE(request) {
         let deleteQuery;
         let queryParams;
 
-        //if (clientIP === LSEE_EXCEPTION_IP) {
-        //    console.log(`Cancelamento via IP autorizado (${clientIP}). O PIN não será validado.`);
-        //    deleteQuery = 'DELETE FROM agendamentos WHERE id = ?';
-        //    queryParams = [id];
-        //} else {
         if (!id || !pinDigitado) {
             return NextResponse.json({ error: 'ID e PIN de liberação são obrigatórios.' }, { status: 400 });
         }
         const hashedPinDigitado = crypto.createHash('md5').update(pinDigitado).digest('hex');
         deleteQuery = 'DELETE FROM agendamentos WHERE id = ? AND pin = ?';
         queryParams = [id, hashedPinDigitado];
-        //}
 
         const [deleteResult] = await pool.execute(deleteQuery, queryParams);
 
