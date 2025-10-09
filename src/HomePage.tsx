@@ -5,14 +5,11 @@ import FormularioAgendamento from './components/FormularioAgendamento';
 import './App.css';
 
 // Utility function to calculate the end date
-const calcularDataTermino = (dataInicioStr: string, diasNecessarios: number): string => {
+const calcularDataTermino = (dataInicioStr: string, diasNecessarios: number): Date => {
     // 1. Convert the YYYY-MM-DD string to a Date object
     const data = new Date(dataInicioStr + 'T00:00:00');
     data.setDate(data.getDate() + (diasNecessarios - 1));
-    const dia = String(data.getDate()).padStart(2, '0');
-    const mes = String(data.getMonth() + 1).padStart(2, '0');
-    const ano = data.getFullYear();
-    return `${dia}/${mes}/${ano}`;
+    return data;
 };
 
 interface Agendamento {
@@ -83,6 +80,15 @@ export default function HomePage() {
     // Get the current year dynamically for the copyright notice
     const currentYear = new Date().getFullYear();
 
+    // Lógica para filtrar agendamentos expirados
+    const hoje = new Date();
+    hoje.setHours(0, 0, 0, 0); // Zera o horário para a comparação ser somente por data
+
+    const agendamentosValidos = agendamentos.filter(agendamento => {
+        const dataTermino = calcularDataTermino(agendamento.data_inicio, agendamento.dias_necessarios);
+        return dataTermino >= hoje;
+    });
+
     return (
         <main className="app-container">
             <div className="main-card">
@@ -114,14 +120,13 @@ export default function HomePage() {
                                 </tr>
                                 </thead>
                                 <tbody>
-                                {agendamentos.map((agendamento) => {
+                                {agendamentosValidos.map((agendamento) => {
                                     // Formata a data de início para exibição
-                                    const dataInicioFormatada = agendamento.data_inicio ? new Date(agendamento.data_inicio).toLocaleDateString('pt-BR', {timeZone: 'UTC'}) : '';
+                                    const dataInicioFormatada = agendamento.data_inicio ? new Date(agendamento.data_inicio + 'T00:00:00').toLocaleDateString('pt-BR', {timeZone: 'UTC'}) : '';
 
-                                    // Calcula a data de término
-                                    const dataTerminoFormatada = agendamento.data_inicio && agendamento.dias_necessarios
-                                        ? calcularDataTermino(agendamento.data_inicio, agendamento.dias_necessarios)
-                                        : 'N/A';
+                                    // Calcula a data de término para exibição
+                                    const dataTermino = calcularDataTermino(agendamento.data_inicio, agendamento.dias_necessarios);
+                                    const dataTerminoFormatada = dataTermino.toLocaleDateString('pt-BR', {timeZone: 'UTC'});
 
                                     return (
                                         <tr key={agendamento.id}>
