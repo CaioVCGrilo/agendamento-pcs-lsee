@@ -40,8 +40,12 @@ export default function HomePage() {
     };
 
     const handleCancelamento = async (id: number) => {
-        const pinDigitado = prompt("Para cancelar, digite o PIN de liberação:");
-
+        // Tenta preencher automaticamente o PIN salvo
+        let pinDigitado = localStorage.getItem('user_pin') || '';
+        if (!pinDigitado) {
+            pinDigitado = prompt("Para cancelar, digite o PIN de liberação:") || '';
+        }
+        // Se ainda não houver PIN, cancela
         if (!pinDigitado) {
             alert("Operação cancelada.");
             return;
