@@ -60,6 +60,21 @@ export default function FormularioAgendamento({ onAgendamentoSucesso, setAtualiz
         }
     }, [pin]);
 
+    // Carregar NOME do localStorage ao montar
+    useEffect(() => {
+        const nomeSalvo = localStorage.getItem('user_nome');
+        if (nomeSalvo) {
+            setNome(nomeSalvo);
+        }
+    }, []);
+
+    // Salvar NOME no localStorage sempre que mudar
+    useEffect(() => {
+        if (nome) {
+            localStorage.setItem('user_nome', nome);
+        }
+    }, [nome]);
+
     const [pcsDisponiveis, setPcsDisponiveis] = useState<string[]>(TODOS_PCS);
     const [loadingDisponibilidade, setLoadingDisponibilidade] = useState(false);
 
