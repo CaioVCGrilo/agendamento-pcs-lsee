@@ -1,4 +1,3 @@
-import path from 'path';
 import React, { useState, useEffect } from 'react';
 import './Formulario.css';
 
@@ -26,9 +25,10 @@ const TODOS_PCS = ['PC 082', 'PC 083', 'PC 094', 'PC 095'];
 
 interface FormularioAgendamentoProps {
     onAgendamentoSucesso: () => void;
+    setAtualizarDisponibilidade?: (fn: () => void) => void;
 }
 
-export default function FormularioAgendamento({ onAgendamentoSucesso }: FormularioAgendamentoProps) {
+export default function FormularioAgendamento({ onAgendamentoSucesso, setAtualizarDisponibilidade }: FormularioAgendamentoProps) {
     const [dataInicial, setDataInicial] = useState(getTodayDate());
     const [diasNecessarios, setDiasNecessarios] = useState('1');
     const [pc, setPc] = useState('');
@@ -63,34 +63,35 @@ export default function FormularioAgendamento({ onAgendamentoSucesso }: Formular
     const [pcsDisponiveis, setPcsDisponiveis] = useState<string[]>(TODOS_PCS);
     const [loadingDisponibilidade, setLoadingDisponibilidade] = useState(false);
 
-    useEffect(() => {
-        const fetchDisponibilidade = async () => {
-            if (!dataInicial || diasNecessarios === '0' || !diasNecessarios || parseInt(diasNecessarios) > 15) {
-                setPcsDisponiveis(TODOS_PCS);
-                return;
-            }
+    // Função para buscar a disponibilidade dos PCs
+    const fetchDisponibilidade = async () => {
+        if (!dataInicial || diasNecessarios === '0' || !diasNecessarios || parseInt(diasNecessarios) > 15) {
+            setPcsDisponiveis(TODOS_PCS);
+            return;
+        }
 
-            setLoadingDisponibilidade(true);
-            try {
-                const response = await fetch(`/api/agendamentos?dataInicial=${dataInicial}&diasNecessarios=${diasNecessarios}`);
-                if (response.ok) {
-                    const availablePcs = await response.json();
-                    setPcsDisponiveis(availablePcs);
-                    if (pc && !availablePcs.includes(pc)) {
-                        setPc('');
-                    }
-                } else {
-                    setPcsDisponiveis(TODOS_PCS);
-                    console.error("Falha ao buscar disponibilidade. Usando lista completa como fallback.");
+        setLoadingDisponibilidade(true);
+        try {
+            const response = await fetch(`/api/agendamentos?dataInicial=${dataInicial}&diasNecessarios=${diasNecessarios}`);
+            if (response.ok) {
+                const availablePcs = await response.json();
+                setPcsDisponiveis(availablePcs);
+                if (pc && !availablePcs.includes(pc)) {
+                    setPc('');
                 }
-            } catch (error) {
-                console.error("Erro de rede ao buscar disponibilidade:", error);
+            } else {
                 setPcsDisponiveis(TODOS_PCS);
-            } finally {
-                setLoadingDisponibilidade(false);
+                console.error("Falha ao buscar disponibilidade. Usando lista completa como fallback.");
             }
-        };
+        } catch (error) {
+            console.error("Erro de rede ao buscar disponibilidade:", error);
+            setPcsDisponiveis(TODOS_PCS);
+        } finally {
+            setLoadingDisponibilidade(false);
+        }
+    };
 
+    useEffect(() => {
         const timer = setTimeout(() => {
             fetchDisponibilidade();
         }, 500);
@@ -104,6 +105,18 @@ export default function FormularioAgendamento({ onAgendamentoSucesso }: Formular
         if (pcsDisponiveis.length === TODOS_PCS.length) return ' (Todos disponíveis)';
         return ` (${pcsDisponiveis.length} disponíveis)`;
     };
+
+    // Função para forçar atualização da lista de PCs disponíveis
+    const forceAtualizarDisponibilidade = () => {
+        fetchDisponibilidade();
+    };
+
+    // Expor a função para o componente pai, se fornecido
+    useEffect(() => {
+        if (setAtualizarDisponibilidade) {
+            setAtualizarDisponibilidade(forceAtualizarDisponibilidade);
+        }
+    }, [setAtualizarDisponibilidade, dataInicial, diasNecessarios, pc]);
 
     // Função de envio separada para ser reutilizada, agora com o tipo 'ReservationData'
     const sendReservation = async (data: ReservationData) => {
@@ -155,6 +168,7 @@ export default function FormularioAgendamento({ onAgendamentoSucesso }: Formular
                     alert(`Erro ao agendar: ${newResult.error || 'Erro desconhecido.'}`);
                 }
             } else if (response.ok) {
+                const result = await response.json();
                 alert('Agendamento criado com sucesso!');
                 onAgendamentoSucesso();
                 setDataInicial(getTodayDate());
@@ -162,6 +176,10 @@ export default function FormularioAgendamento({ onAgendamentoSucesso }: Formular
                 setPc('');
                 setNome('');
                 setPin('');
+                // Se a resposta indicar refreshDisponiveis, força atualização
+                if (result.refreshDisponiveis) {
+                    forceAtualizarDisponibilidade();
+                }
             } else if (response.status === 409) {
                 const result = await response.json();
                 const conflito = result.conflito;

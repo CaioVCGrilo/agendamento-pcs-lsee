@@ -195,7 +195,8 @@ export async function POST(request) {
 
         return NextResponse.json({
             message: 'Agendamento criado com sucesso!',
-            id: result.insertId
+            id: result.insertId,
+            refreshDisponiveis: true
         }, { status: 201 });
 
     } catch (error) {
@@ -258,7 +259,7 @@ export async function DELETE(request) {
             return NextResponse.json({ error: 'PIN ou ID do agendamento incorreto. Cancelamento não autorizado.' }, { status: 403 });
         }
 
-        return NextResponse.json({ message: 'Agendamento cancelado com sucesso.' }, { status: 200 });
+        return NextResponse.json({ message: 'Agendamento cancelado com sucesso.', refreshDisponiveis: true }, { status: 200 });
 
     } catch (error) {
         console.error('Erro ao processar cancelamento (DELETE):', error);

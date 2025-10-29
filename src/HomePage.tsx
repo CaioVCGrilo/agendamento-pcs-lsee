@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import FormularioAgendamento from './components/FormularioAgendamento';
 import './App.css';
 
@@ -23,6 +23,14 @@ interface Agendamento {
 export default function HomePage() {
     const [agendamentos, setAgendamentos] = useState<Agendamento[]>([]);
     const [loading, setLoading] = useState(true);
+
+    // Referência para função de atualização da disponibilidade
+    const atualizarDisponibilidadeRef = useRef<null | (() => void)>(null);
+
+    // Função para ser passada ao FormularioAgendamento
+    const setAtualizarDisponibilidade = (fn: () => void) => {
+        atualizarDisponibilidadeRef.current = fn;
+    };
 
     const fetchAgendamentos = async () => {
         setLoading(true);
@@ -65,6 +73,10 @@ export default function HomePage() {
             if (response.ok) {
                 alert(`Agendamento ${id} cancelado com sucesso!`);
                 fetchAgendamentos();
+                // Se a resposta indicar refreshDisponiveis, força atualização global
+                if (result.refreshDisponiveis && atualizarDisponibilidadeRef.current) {
+                    atualizarDisponibilidadeRef.current();
+                }
             } else if (response.status === 403 || response.status === 404) {
                 alert(`Falha no Cancelamento: ${result.error || 'PIN ou ID incorreto.'}`);
             } else {
@@ -80,6 +92,8 @@ export default function HomePage() {
     useEffect(() => {
         fetchAgendamentos();
     }, []);
+
+    // Adiciona integração global para forçar atualização da lista de PCs disponíveis
 
     // Get the current year dynamically for the copyright notice
     const currentYear = new Date().getFullYear();
@@ -105,7 +119,7 @@ export default function HomePage() {
                     </div>
                 </header>
                 <div className="content-section">
-                    <FormularioAgendamento onAgendamentoSucesso={fetchAgendamentos} />
+                    <FormularioAgendamento onAgendamentoSucesso={fetchAgendamentos} setAtualizarDisponibilidade={setAtualizarDisponibilidade} />
 
                     <h2 className="section-title">Agendamentos Existentes</h2>
 
