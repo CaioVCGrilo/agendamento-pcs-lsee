@@ -34,6 +34,7 @@ export default function FormularioAgendamento({ onAgendamentoSucesso }: Formular
     const [pc, setPc] = useState('');
     const [nome, setNome] = useState('');
     const [pin, setPin] = useState('');
+    const [pinAutopreenchido, setPinAutopreenchido] = useState(false);
 
     // Carregar PIN do localStorage ao montar
     useEffect(() => {
@@ -42,6 +43,7 @@ export default function FormularioAgendamento({ onAgendamentoSucesso }: Formular
         if (expiraEm && pinSalvo) {
             if (Date.now() < Number(expiraEm)) {
                 setPin(pinSalvo);
+                setPinAutopreenchido(true);
             } else {
                 localStorage.removeItem('user_pin');
                 localStorage.removeItem('pin_expira_em');
@@ -269,10 +271,13 @@ export default function FormularioAgendamento({ onAgendamentoSucesso }: Formular
                         <path d="M2 1a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V2a1 1 0 0 0-1-1H2zm0-1h12a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V2a2 2 0 0 1 2-2z"/>
                     </svg>
                     <input
-                        type="text"
+                        type={pinAutopreenchido ? 'password' : 'text'}
                         id="pin"
                         value={pin}
-                        onChange={(e) => setPin(e.target.value)}
+                        onChange={(e) => {
+                            setPin(e.target.value);
+                            setPinAutopreenchido(false);
+                        }}
                         className="form-input-modern"
                         required
                     />
