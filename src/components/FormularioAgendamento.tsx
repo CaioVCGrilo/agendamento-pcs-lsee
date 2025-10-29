@@ -35,6 +35,29 @@ export default function FormularioAgendamento({ onAgendamentoSucesso }: Formular
     const [nome, setNome] = useState('');
     const [pin, setPin] = useState('');
 
+    // Carregar PIN do localStorage ao montar
+    useEffect(() => {
+        const expiraEm = localStorage.getItem('pin_expira_em');
+        const pinSalvo = localStorage.getItem('user_pin');
+        if (expiraEm && pinSalvo) {
+            if (Date.now() < Number(expiraEm)) {
+                setPin(pinSalvo);
+            } else {
+                localStorage.removeItem('user_pin');
+                localStorage.removeItem('pin_expira_em');
+            }
+        }
+    }, []);
+
+    // Salvar PIN no localStorage sempre que mudar
+    useEffect(() => {
+        if (pin) {
+            const expiraEm = Date.now() + 365 * 24 * 60 * 60 * 1000;
+            localStorage.setItem('user_pin', pin);
+            localStorage.setItem('pin_expira_em', expiraEm.toString());
+        }
+    }, [pin]);
+
     const [pcsDisponiveis, setPcsDisponiveis] = useState<string[]>(TODOS_PCS);
     const [loadingDisponibilidade, setLoadingDisponibilidade] = useState(false);
 
