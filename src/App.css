@@ -151,6 +151,11 @@
     color: #a16207;
 }
 
+.pc-tag.red {
+    background-color: #fee2e2;
+    color: #b91c1c;
+}
+
 /* Estilo do formulário */
 .form-card {
     background-color: white;

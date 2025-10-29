@@ -152,10 +152,11 @@ export default function HomePage() {
                                             <td data-label="Término">{dataTerminoFormatada}</td>
                                             <td data-label="Nº PC">
                                                 <span className={`pc-tag ${
+                                                    agendamento.pc_numero.startsWith('PC 076') ? 'red' :
                                                     agendamento.pc_numero === 'PC 094' ? 'blue' :
-                                                        agendamento.pc_numero === 'PC 082' ? 'orange' :
-                                                            agendamento.pc_numero === 'PC 095' ? 'purple' :
-                                                                'green'
+                                                    agendamento.pc_numero === 'PC 082' ? 'orange' :
+                                                    agendamento.pc_numero === 'PC 095' ? 'purple' :
+                                                    'green'
                                                 }`}>
                                                     {agendamento.pc_numero}
                                                 </span>
