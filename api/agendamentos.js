@@ -67,7 +67,7 @@ function checkDbConnection() {
     return null;
 }
 
-const TODOS_PCS = ['PC 082', 'PC 083', 'PC 094', 'PC 095'];
+const TODOS_PCS = ['PC 076 (RTDS)', 'PC 082', 'PC 083', 'PC 094', 'PC 095'];
 
 export async function GET_DISPONIVEIS(request) {
     const connectionError = checkDbConnection();

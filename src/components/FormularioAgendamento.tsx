@@ -21,7 +21,7 @@ const getTodayDate = () => {
 };
 
 // Lista de todos os PCs no laboratório (MESMA LISTA DO BACKEND)
-const TODOS_PCS = ['PC 082', 'PC 083', 'PC 094', 'PC 095'];
+const TODOS_PCS = ['PC 076 (RTDS)', 'PC 082', 'PC 083', 'PC 094', 'PC 095'];
 
 interface FormularioAgendamentoProps {
     onAgendamentoSucesso: () => void;
@@ -38,25 +38,17 @@ export default function FormularioAgendamento({ onAgendamentoSucesso, setAtualiz
 
     // Carregar PIN do localStorage ao montar
     useEffect(() => {
-        const expiraEm = localStorage.getItem('pin_expira_em');
         const pinSalvo = localStorage.getItem('user_pin');
-        if (expiraEm && pinSalvo) {
-            if (Date.now() < Number(expiraEm)) {
-                setPin(pinSalvo);
-                setPinAutopreenchido(true);
-            } else {
-                localStorage.removeItem('user_pin');
-                localStorage.removeItem('pin_expira_em');
-            }
+        if (pinSalvo) {
+            setPin(pinSalvo);
+            setPinAutopreenchido(true);
         }
     }, []);
 
     // Salvar PIN no localStorage sempre que mudar
     useEffect(() => {
         if (pin) {
-            const expiraEm = Date.now() + 365 * 24 * 60 * 60 * 1000;
             localStorage.setItem('user_pin', pin);
-            localStorage.setItem('pin_expira_em', expiraEm.toString());
         }
     }, [pin]);
 
@@ -177,8 +169,17 @@ export default function FormularioAgendamento({ onAgendamentoSucesso, setAtualiz
                     setDataInicial(getTodayDate());
                     setDiasNecessarios('1');
                     setPc('');
-                    setNome('');
-                    setPin('');
+                    // Restaurar nome e pin do localStorage após reset
+                    const nomeSalvo = localStorage.getItem('user_nome') || '';
+                    setNome(nomeSalvo);
+                    const pinSalvoLocal = localStorage.getItem('user_pin');
+                    if (pinSalvoLocal) {
+                        setPin(pinSalvoLocal);
+                        setPinAutopreenchido(true);
+                    } else {
+                        setPin('');
+                        setPinAutopreenchido(false);
+                    }
                 } else {
                     alert(`Erro ao agendar: ${newResult.error || 'Erro desconhecido.'}`);
                 }
@@ -190,7 +191,17 @@ export default function FormularioAgendamento({ onAgendamentoSucesso, setAtualiz
                 setDiasNecessarios('1');
                 setPc('');
                 setNome('');
-                setPin('');
+                // Restaurar nome e pin do localStorage após reset
+                const nomeSalvo = localStorage.getItem('user_nome') || '';
+                setNome(nomeSalvo);
+                const pinSalvoLocal = localStorage.getItem('user_pin');
+                if (pinSalvoLocal) {
+                    setPin(pinSalvoLocal);
+                    setPinAutopreenchido(true);
+                } else {
+                    setPin('');
+                    setPinAutopreenchido(false);
+                }
                 // Se a resposta indicar refreshDisponiveis, força atualização
                 if (result.refreshDisponiveis) {
                     forceAtualizarDisponibilidade();
@@ -274,8 +285,8 @@ export default function FormularioAgendamento({ onAgendamentoSucesso, setAtualiz
                         <option value="">
                             {pcsDisponiveis.length === 0 ? 'NENHUM DISPONÍVEL' : 'Selecione um PC'}
                         </option>
-                        {pcsDisponiveis.map(pc => (
-                            <option key={pc} value={pc}>{pc}</option>
+                        {pcsDisponiveis.map(pcOption => (
+                            <option key={pcOption} value={pcOption} style={pcOption.startsWith('PC 076') ? { color: 'red', fontWeight: 'bold' } : {}}>{pcOption}</option>
                         ))}
                     </select>
                 </div>
