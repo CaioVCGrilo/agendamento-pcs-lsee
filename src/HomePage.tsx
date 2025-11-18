@@ -22,6 +22,7 @@ interface Agendamento {
 
 export default function HomePage() {
     const [agendamentos, setAgendamentos] = useState<Agendamento[]>([]);
+    const [totalAgendamentos, setTotalAgendamentos] = useState<number>(0);
     const [loading, setLoading] = useState(true);
 
     // Referência para função de atualização da disponibilidade
@@ -38,7 +39,8 @@ export default function HomePage() {
             const response = await fetch('/api/agendamentos');
             if (response.ok) {
                 const data = await response.json();
-                setAgendamentos(data);
+                setAgendamentos(data.agendamentos || data);
+                setTotalAgendamentos(data.totalAgendamentos || 0);
             }
         } catch (error) {
             console.error("Erro ao carregar agendamentos:", error);
@@ -89,6 +91,70 @@ export default function HomePage() {
         }
     };
 
+    const handleExtensao = async (id: number) => {
+        // Solicitar quantos dias de extensão
+        const diasExtensaoStr = prompt("Quantos dias deseja estender o agendamento? (1-15)");
+        if (!diasExtensaoStr) {
+            alert("Operação cancelada.");
+            return;
+        }
+
+        const diasExtensao = parseInt(diasExtensaoStr);
+        if (isNaN(diasExtensao) || diasExtensao < 1 || diasExtensao > 15) {
+            alert("Número de dias inválido. Deve ser entre 1 e 15.");
+            return;
+        }
+
+        // Tenta preencher automaticamente o PIN salvo
+        let pinDigitado = localStorage.getItem('user_pin') || '';
+        if (!pinDigitado) {
+            pinDigitado = prompt("Para estender, digite o PIN de liberação:") || '';
+        }
+        if (!pinDigitado) {
+            alert("Operação cancelada.");
+            return;
+        }
+
+        try {
+            const response = await fetch('/api/agendamentos', {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ id, diasExtensao, pinDigitado }),
+            });
+
+            const result = await response.json();
+
+            if (response.ok) {
+                alert(`Agendamento ${id} estendido com sucesso! Novo total de dias: ${result.novosDiasNecessarios}`);
+                fetchAgendamentos();
+                // Se a resposta indicar refreshDisponiveis, força atualização global
+                if (result.refreshDisponiveis && atualizarDisponibilidadeRef.current) {
+                    atualizarDisponibilidadeRef.current();
+                }
+            } else if (response.status === 409) {
+                const conflito = result.conflito;
+                const dataFim = new Date(conflito.data_inicio);
+                dataFim.setDate(dataFim.getDate() + conflito.dias_necessarios);
+                alert(
+                    `❌ Não é possível estender!\n\n` +
+                    `${result.message}\n` +
+                    `Reservado por: ${conflito.agendado_por}\n` +
+                    `Período: ${new Date(conflito.data_inicio).toLocaleDateString('pt-BR')} até ${dataFim.toLocaleDateString('pt-BR')}`
+                );
+            } else if (response.status === 403 || response.status === 404) {
+                alert(`Falha na Extensão: ${result.error || 'PIN ou ID incorreto.'}`);
+            } else {
+                alert(`Erro ao estender: ${result.error || 'Erro desconhecido.'}`);
+            }
+
+        } catch (error) {
+            console.error("Erro na requisição PATCH:", error);
+            alert("Erro de conexão com o servidor ao tentar estender.");
+        }
+    };
+
     useEffect(() => {
         fetchAgendamentos();
     }, []);
@@ -121,7 +187,12 @@ export default function HomePage() {
                 <div className="content-section">
                     <FormularioAgendamento onAgendamentoSucesso={fetchAgendamentos} setAtualizarDisponibilidade={setAtualizarDisponibilidade} />
 
-                    <h2 className="section-title">Agendamentos Existentes</h2>
+                    <h2 className="section-title">
+                        Agendamentos Existentes
+                        <span className="total-agendamentos-badge">
+                            {totalAgendamentos > 0 && ` • Total de usos: ${totalAgendamentos.toLocaleString('pt-BR')}`}
+                        </span>
+                    </h2>
 
                     {loading ? (
                         <p>Carregando agendamentos...</p>
@@ -164,9 +235,14 @@ export default function HomePage() {
                                             {/* Corrected the variable name here */}
                                             <td data-label="Agendado por">{agendamento.agendado_por}</td>
                                             <td data-label="Ação">
-                                                <button onClick={() => handleCancelamento(agendamento.id)} className="cancel-button">
-                                                    Cancelar
-                                                </button>
+                                                <div className="action-buttons">
+                                                    <button onClick={() => handleExtensao(agendamento.id)} className="extend-button" title="Estender agendamento">
+                                                        Estender
+                                                    </button>
+                                                    <button onClick={() => handleCancelamento(agendamento.id)} className="cancel-button" title="Cancelar agendamento">
+                                                        Cancelar
+                                                    </button>
+                                                </div>
                                             </td>
                                         </tr>
                                     );

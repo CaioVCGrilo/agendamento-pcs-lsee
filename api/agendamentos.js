@@ -42,6 +42,7 @@ async function initializeDatabase() {
             pc_numero VARCHAR(50) NOT NULL,
             agendado_por VARCHAR(100) NOT NULL,
             pin VARCHAR(32) NOT NULL,
+            ativo BOOLEAN DEFAULT TRUE,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
     `;
@@ -49,6 +50,14 @@ async function initializeDatabase() {
     try {
         await pool.execute(createTableQuery);
         console.log("Tabela 'agendamentos' verificada/criada com sucesso.");
+
+        // Adicionar coluna 'ativo' se a tabela já existir sem ela
+        const addColumnQuery = `
+            ALTER TABLE agendamentos 
+            ADD COLUMN IF NOT EXISTS ativo BOOLEAN DEFAULT TRUE;
+        `;
+        await pool.execute(addColumnQuery);
+        console.log("Coluna 'ativo' verificada/adicionada com sucesso.");
     } catch (error) {
         console.error("ERRO CRÍTICO: Falha ao inicializar a tabela agendamentos.", error);
     }
@@ -90,6 +99,7 @@ export async function GET_DISPONIVEIS(request) {
             SELECT DISTINCT pc_numero
             FROM agendamentos
             WHERE
+                ativo = TRUE AND
                 data_inicio <= ? AND DATE_ADD(data_inicio, INTERVAL dias_necessarios - 1 DAY) >= ?;
         `;
 
@@ -152,6 +162,7 @@ export async function POST(request) {
             SELECT id, data_inicio, dias_necessarios, agendado_por
             FROM agendamentos
             WHERE pc_numero = ?
+              AND ativo = TRUE
               AND data_inicio <= ? AND DATE_ADD(data_inicio, INTERVAL dias_necessarios - 1 DAY) >= ?
                 LIMIT 1;
         `;
@@ -220,12 +231,18 @@ export async function GET_ALL_AGENDAMENTOS() {
                  pc_numero,
                  agendado_por
              FROM agendamentos
-             WHERE DATE_ADD(data_inicio, INTERVAL dias_necessarios - 0 DAY) >= ?
+             WHERE ativo = TRUE AND DATE_ADD(data_inicio, INTERVAL dias_necessarios - 0 DAY) >= ?
              ORDER BY data_inicio ASC;`,
             [today]
         );
 
-        return NextResponse.json(agendamentos, { status: 200 });
+        // Buscar o total de agendamentos (incluindo inativos e expirados)
+        const [totalResult] = await pool.execute(
+            `SELECT COUNT(*) as total FROM agendamentos;`
+        );
+        const totalAgendamentos = totalResult[0].total;
+
+        return NextResponse.json({ agendamentos, totalAgendamentos }, { status: 200 });
 
     } catch (error) {
         console.error('Erro ao buscar agendamentos (GET):', error);
@@ -250,7 +267,8 @@ export async function DELETE(request) {
             return NextResponse.json({ error: 'ID e PIN de liberação são obrigatórios.' }, { status: 400 });
         }
         const hashedPinDigitado = crypto.createHash('md5').update(pinDigitado).digest('hex');
-        deleteQuery = 'DELETE FROM agendamentos WHERE id = ? AND pin = ?';
+        // Soft delete - marcar como inativo em vez de deletar
+        deleteQuery = 'UPDATE agendamentos SET ativo = FALSE WHERE id = ? AND pin = ? AND ativo = TRUE';
         queryParams = [id, hashedPinDigitado];
 
         const [deleteResult] = await pool.execute(deleteQuery, queryParams);
@@ -264,6 +282,110 @@ export async function DELETE(request) {
     } catch (error) {
         console.error('Erro ao processar cancelamento (DELETE):', error);
         return NextResponse.json({ error: 'Erro de infraestrutura ao cancelar o agendamento.' }, { status: 503 });
+    }
+}
+
+export async function PATCH(request) {
+    const connectionError = checkDbConnection();
+    if (connectionError) return connectionError;
+
+    try {
+        const { id, diasExtensao, pinDigitado } = await request.json();
+
+        if (!id || !diasExtensao || !pinDigitado) {
+            return NextResponse.json({ error: 'ID, dias de extensão e PIN são obrigatórios.' }, { status: 400 });
+        }
+
+        if (diasExtensao < 1 || diasExtensao > 15) {
+            return NextResponse.json({ error: 'A extensão deve ser entre 1 e 15 dias.' }, { status: 400 });
+        }
+
+        const hashedPinDigitado = crypto.createHash('md5').update(pinDigitado).digest('hex');
+
+        // Buscar o agendamento atual
+        const [agendamentoAtual] = await pool.execute(
+            `SELECT id, data_inicio, dias_necessarios, pc_numero, pin 
+             FROM agendamentos 
+             WHERE id = ? AND ativo = TRUE`,
+            [id]
+        );
+
+        if (agendamentoAtual.length === 0) {
+            return NextResponse.json({ error: 'Agendamento não encontrado ou já foi cancelado.' }, { status: 404 });
+        }
+
+        const agendamento = agendamentoAtual[0];
+
+        // Verificar PIN
+        if (agendamento.pin !== hashedPinDigitado) {
+            return NextResponse.json({ error: 'PIN incorreto. Extensão não autorizada.' }, { status: 403 });
+        }
+
+        // Calcular nova data de término
+        const dataInicio = agendamento.data_inicio;
+        const novosDiasNecessarios = agendamento.dias_necessarios + parseInt(diasExtensao);
+
+        if (novosDiasNecessarios > 30) {
+            return NextResponse.json({ error: 'A extensão resultaria em um período total maior que 30 dias.' }, { status: 400 });
+        }
+
+        const dataFimNova = new Date(dataInicio);
+        dataFimNova.setDate(dataFimNova.getDate() + novosDiasNecessarios - 1);
+        const dataFimNovaISO = dataFimNova.toISOString().split('T')[0];
+
+        // Verificar conflitos com outros agendamentos
+        const conflictQuery = `
+            SELECT id, data_inicio, dias_necessarios, agendado_por
+            FROM agendamentos
+            WHERE pc_numero = ?
+              AND ativo = TRUE
+              AND id != ?
+              AND data_inicio <= ? AND DATE_ADD(data_inicio, INTERVAL dias_necessarios - 1 DAY) >= ?
+                LIMIT 1;
+        `;
+
+        const dataFimAtual = new Date(dataInicio);
+        dataFimAtual.setDate(dataFimAtual.getDate() + agendamento.dias_necessarios);
+        const dataInicioVerificacao = dataFimAtual.toISOString().split('T')[0];
+
+        const [conflicts] = await pool.execute(conflictQuery, [
+            agendamento.pc_numero,
+            id,
+            dataFimNovaISO,
+            dataInicioVerificacao
+        ]);
+
+        if (conflicts.length > 0) {
+            const conflito = conflicts[0];
+            return NextResponse.json({
+                error: 'CONFLITO DE AGENDAMENTO',
+                message: `Não é possível extender. O PC ${agendamento.pc_numero} já está reservado para outro usuário no período solicitado.`,
+                conflito: {
+                    agendado_por: conflito.agendado_por,
+                    data_inicio: conflito.data_inicio,
+                    dias_necessarios: conflito.dias_necessarios
+                }
+            }, { status: 409 });
+        }
+
+        // Atualizar o agendamento com os novos dias
+        const updateQuery = `
+            UPDATE agendamentos 
+            SET dias_necessarios = ? 
+            WHERE id = ?;
+        `;
+
+        await pool.execute(updateQuery, [novosDiasNecessarios, id]);
+
+        return NextResponse.json({
+            message: 'Agendamento estendido com sucesso!',
+            novosDiasNecessarios: novosDiasNecessarios,
+            refreshDisponiveis: true
+        }, { status: 200 });
+
+    } catch (error) {
+        console.error('Erro ao processar extensão (PATCH):', error);
+        return NextResponse.json({ error: 'Erro de infraestrutura ao estender o agendamento.' }, { status: 503 });
     }
 }
 
