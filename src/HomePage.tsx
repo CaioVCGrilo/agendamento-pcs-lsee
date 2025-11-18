@@ -49,16 +49,20 @@ export default function HomePage() {
         }
     };
 
-    const handleCancelamento = async (id: number) => {
-        // Tenta preencher automaticamente o PIN salvo
-        let pinDigitado = localStorage.getItem('user_pin') || '';
+    const handleCancelamento = async (id: number, tentativaComPinSalvo: boolean = true): Promise<void> => {
+        // Tenta usar o PIN salvo primeiro, caso esteja disponível
+        let pinDigitado = '';
+        if (tentativaComPinSalvo) {
+            pinDigitado = localStorage.getItem('user_pin') || '';
+        }
+
+        // Se não houver PIN salvo ou se esta for uma tentativa após falha, solicita ao usuário
         if (!pinDigitado) {
             pinDigitado = prompt("Para cancelar, digite o PIN de liberação:") || '';
-        }
-        // Se ainda não houver PIN, cancela
-        if (!pinDigitado) {
-            alert("Operação cancelada.");
-            return;
+            if (!pinDigitado) {
+                alert("Operação cancelada.");
+                return;
+            }
         }
 
         try {
@@ -79,8 +83,17 @@ export default function HomePage() {
                 if (result.refreshDisponiveis && atualizarDisponibilidadeRef.current) {
                     atualizarDisponibilidadeRef.current();
                 }
-            } else if (response.status === 403 || response.status === 404) {
-                alert(`Falha no Cancelamento: ${result.error || 'PIN ou ID incorreto.'}`);
+            } else if (response.status === 403) {
+                // PIN incorreto - se foi tentativa com PIN salvo, tenta novamente pedindo ao usuário
+                if (tentativaComPinSalvo && localStorage.getItem('user_pin')) {
+                    alert(`O PIN salvo não corresponde a este agendamento. Por favor, digite o PIN correto.`);
+                    // Chama recursivamente sem usar o PIN salvo
+                    return handleCancelamento(id, false);
+                } else {
+                    alert(`Falha no Cancelamento: ${result.error || 'PIN incorreto.'}`);
+                }
+            } else if (response.status === 404) {
+                alert(`Falha no Cancelamento: ${result.error || 'Agendamento não encontrado.'}`);
             } else {
                 alert(`Erro ao cancelar: ${result.error || 'Erro desconhecido.'}`);
             }
@@ -91,7 +104,7 @@ export default function HomePage() {
         }
     };
 
-    const handleExtensao = async (id: number) => {
+    const handleExtensao = async (id: number, tentativaComPinSalvo: boolean = true): Promise<void> => {
         // Solicitar quantos dias de extensão
         const diasExtensaoStr = prompt("Quantos dias deseja estender o agendamento? (1-15)");
         if (!diasExtensaoStr) {
@@ -105,14 +118,19 @@ export default function HomePage() {
             return;
         }
 
-        // Tenta preencher automaticamente o PIN salvo
-        let pinDigitado = localStorage.getItem('user_pin') || '';
+        // Tenta usar o PIN salvo primeiro, caso esteja disponível
+        let pinDigitado = '';
+        if (tentativaComPinSalvo) {
+            pinDigitado = localStorage.getItem('user_pin') || '';
+        }
+
+        // Se não houver PIN salvo ou se esta for uma tentativa após falha, solicita ao usuário
         if (!pinDigitado) {
             pinDigitado = prompt("Para estender, digite o PIN de liberação:") || '';
-        }
-        if (!pinDigitado) {
-            alert("Operação cancelada.");
-            return;
+            if (!pinDigitado) {
+                alert("Operação cancelada.");
+                return;
+            }
         }
 
         try {
@@ -143,8 +161,17 @@ export default function HomePage() {
                     `Reservado por: ${conflito.agendado_por}\n` +
                     `Período: ${new Date(conflito.data_inicio).toLocaleDateString('pt-BR')} até ${dataFim.toLocaleDateString('pt-BR')}`
                 );
-            } else if (response.status === 403 || response.status === 404) {
-                alert(`Falha na Extensão: ${result.error || 'PIN ou ID incorreto.'}`);
+            } else if (response.status === 403) {
+                // PIN incorreto - se foi tentativa com PIN salvo, tenta novamente pedindo ao usuário
+                if (tentativaComPinSalvo && localStorage.getItem('user_pin')) {
+                    alert(`O PIN salvo não corresponde a este agendamento. Por favor, digite o PIN correto.`);
+                    // Chama recursivamente sem usar o PIN salvo
+                    return handleExtensao(id, false);
+                } else {
+                    alert(`Falha na Extensão: ${result.error || 'PIN incorreto.'}`);
+                }
+            } else if (response.status === 404) {
+                alert(`Falha na Extensão: ${result.error || 'Agendamento não encontrado.'}`);
             } else {
                 alert(`Erro ao estender: ${result.error || 'Erro desconhecido.'}`);
             }
