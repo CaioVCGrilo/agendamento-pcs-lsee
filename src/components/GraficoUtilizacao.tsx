@@ -403,7 +403,6 @@ const GraficoUtilizacao: React.FC = () => {
                             stroke="#2563eb"
                             fillOpacity={1}
                             fill="url(#colorReservas)"
-                            name="Reservas"
                             strokeWidth={2}
                         />
                     </AreaChart>
