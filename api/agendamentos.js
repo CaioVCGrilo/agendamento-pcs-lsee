@@ -153,7 +153,7 @@ export async function GET(request) {
                 FROM agendamentos
                 WHERE data_inicio >= ?
                 GROUP BY DATE(data_inicio)
-                ORDER BY data_inicio ASC;
+                ORDER BY DATE(data_inicio) ASC;
             `;
 
             console.log('Executando query de estatísticas...');
