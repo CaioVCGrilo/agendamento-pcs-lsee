@@ -47,37 +47,61 @@ type Periodo = 'semana' | 'mes' | 'semestre' | 'ano';
 const generateMockStatsData = (periodo: Periodo): StatsResponse => {
     const hoje = new Date();
     const stats: StatData[] = [];
-    const diasNoPeriodo = periodo === 'semana' ? 7 : periodo === 'mes' ? 30 : periodo === 'semestre' ? 30 : 30;
 
-    for (let i = diasNoPeriodo - 1; i >= 0; i--) {
+    // Definir número de dias baseado no período
+    let diasNoPeriodo: number;
+    switch (periodo) {
+        case 'semana':
+            diasNoPeriodo = 7;
+            break;
+        case 'mes':
+            diasNoPeriodo = 30;
+            break;
+        case 'semestre':
+            diasNoPeriodo = 180;
+            break;
+        case 'ano':
+            diasNoPeriodo = 365;
+            break;
+        default:
+            diasNoPeriodo = 180;
+    }
+
+    // Limitar a 30 dias para performance, mas manter a lógica do período
+    const diasParaMostrar = Math.min(diasNoPeriodo, 30);
+
+    for (let i = diasParaMostrar - 1; i >= 0; i--) {
         const data = new Date(hoje);
         data.setDate(hoje.getDate() - i);
 
+        // Gerar dados diferentes baseados no período (mais dados para períodos maiores)
+        const multiplicador = periodo === 'semana' ? 1 : periodo === 'mes' ? 2 : periodo === 'semestre' ? 3 : 4;
+
         stats.push({
-            data: data.toISOString().split('T')[0],
-            total_reservas: Math.floor(Math.random() * 8) + 1,
+            data: data.toISOString().split('T')[0], // Formato YYYY-MM-DD
+            total_reservas: Math.floor(Math.random() * 8 * multiplicador) + 1,
             pcs_distintos: Math.floor(Math.random() * 4) + 1,
-            total_dias_reservados: Math.floor(Math.random() * 15) + 5
+            total_dias_reservados: Math.floor(Math.random() * 15 * multiplicador) + 5
         });
     }
 
-    const totalReservas = stats.reduce((acc, item) => acc + (item.total_reservas || 0), 0);
-    const totalDias = stats.reduce((acc, item) => acc + (item.total_dias_reservados || 0), 0);
-    const mediaDias = totalReservas > 0 ? totalDias / totalReservas : 0;
-    const totalPcsUsados = 5;
+    const totalReservas = Number(stats.reduce((acc, item) => acc + (item.total_reservas || 0), 0));
+    const totalDias = Number(stats.reduce((acc, item) => acc + (item.total_dias_reservados || 0), 0));
+    const mediaDias = totalReservas > 0 ? Number((totalDias / totalReservas).toFixed(1)) : 0;
+    const totalPcsUsados = Math.max(...stats.map(item => item.pcs_distintos), 1);
 
     return {
         stats,
         summary: {
-            total_reservas: totalReservas || 0,
-            total_dias: totalDias || 0,
-            media_dias: parseFloat(mediaDias.toFixed(1)) || 0,
-            total_pcs_usados: totalPcsUsados || 0
+            total_reservas: Number(totalReservas) || 0,
+            total_dias: Number(totalDias) || 0,
+            media_dias: Number(mediaDias) || 0,
+            total_pcs_usados: Number(totalPcsUsados) || 0
         },
         pcMaisUsado: {
             pc_numero: 'PC 076 (RTDS)',
-            num_reservas: Math.floor(totalReservas * 0.4) || 1,
-            dias_totais: Math.floor(totalDias * 0.4) || 1
+            num_reservas: Number(Math.floor(totalReservas * 0.4)) || 1,
+            dias_totais: Number(Math.floor(totalDias * 0.4)) || 1
         },
         periodo,
         dataInicio: stats[0]?.data || hoje.toISOString().split('T')[0]
@@ -151,12 +175,29 @@ const GraficoUtilizacao: React.FC = () => {
     }, [fetchStatistics]);
 
     const formatarData = (dataStr: string) => {
-        const data = new Date(dataStr + 'T00:00:00');
-        
-        if (periodo === 'semana' || periodo === 'mes') {
-            return data.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
-        } else {
-            return data.toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' });
+        try {
+            // Verificar se dataStr é válida
+            if (!dataStr) {
+                console.error('Data inválida recebida:', dataStr);
+                return 'Data Inválida';
+            }
+
+            const data = new Date(dataStr + 'T00:00:00');
+
+            // Verificar se a data é válida
+            if (isNaN(data.getTime())) {
+                console.error('Data não pôde ser parseada:', dataStr);
+                return 'Data Inválida';
+            }
+
+            if (periodo === 'semana' || periodo === 'mes') {
+                return data.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+            } else {
+                return data.toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' });
+            }
+        } catch (error) {
+            console.error('Erro ao formatar data:', dataStr, error);
+            return 'Erro';
         }
     };
 
@@ -236,7 +277,11 @@ const GraficoUtilizacao: React.FC = () => {
                         <label>Período:</label>
                         <select 
                             value={periodo} 
-                            onChange={(e) => setPeriodo(e.target.value as Periodo)}
+                            onChange={(e) => {
+                                const novoPeriodo = e.target.value as Periodo;
+                                console.log('Período alterado de', periodo, 'para', novoPeriodo);
+                                setPeriodo(novoPeriodo);
+                            }}
                             className="periodo-select"
                         >
                             <option value="semana">Última Semana</option>
