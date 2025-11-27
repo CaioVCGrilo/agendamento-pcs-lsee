@@ -13,24 +13,7 @@ const pool = mysql.createPool({
 });
 
 const LSEE_EXCEPTION_IP = '143.107.235.10';
-
-async function autoDeleteOldReservations() {
-    console.log("Executando limpeza de agendamentos antigos...");
-    const yesterday = new Date();
-    yesterday.setDate(yesterday.getDate() - 1);
-    const yesterdayISO = yesterday.toISOString().split('T')[0];
-    const deleteQuery = `
-        DELETE FROM agendamentos
-        WHERE DATE_ADD(data_inicio, INTERVAL dias_necessarios - 1 DAY) < ?;
-    `;
-
-    try {
-        const [result] = await pool.execute(deleteQuery, [yesterdayISO]);
-        console.log(`Limpeza concluída. ${result.affectedRows} agendamento(s) antigo(s) excluído(s).`);
-    } catch (error) {
-        console.error("ERRO: Falha ao executar a limpeza de agendamentos antigos.", error);
-    }
-}
+const TODOS_PCS = ['PC 076 (RTDS)', 'PC 082', 'PC 083', 'PC 094', 'PC 095'];
 
 async function initializeDatabase() {
     console.log("Tentando inicializar o banco de dados e criar a tabela 'agendamentos'...");
@@ -53,8 +36,8 @@ async function initializeDatabase() {
 
         // Adicionar coluna 'ativo' se a tabela já existir sem ela
         const addColumnQuery = `
-            ALTER TABLE agendamentos 
-            ADD COLUMN IF NOT EXISTS ativo BOOLEAN DEFAULT TRUE;
+            ALTER TABLE agendamentos
+                ADD COLUMN IF NOT EXISTS ativo BOOLEAN DEFAULT TRUE;
         `;
         await pool.execute(addColumnQuery);
         console.log("Coluna 'ativo' verificada/adicionada com sucesso.");
@@ -64,7 +47,6 @@ async function initializeDatabase() {
 }
 
 initializeDatabase();
-//autoDeleteOldReservations();
 
 function checkDbConnection() {
     if (!process.env.MYSQL_HOST) {
@@ -76,42 +58,150 @@ function checkDbConnection() {
     return null;
 }
 
-const TODOS_PCS = ['PC 076 (RTDS)', 'PC 082', 'PC 083', 'PC 094', 'PC 095'];
-
-export async function GET_DISPONIVEIS(request) {
+export async function GET(request) {
     const connectionError = checkDbConnection();
     if (connectionError) return connectionError;
 
     try {
         const { searchParams } = new URL(request.url);
-        const dataInicio = searchParams.get('dataInicial');
-        const diasNecessarios = parseInt(searchParams.get('diasNecessarios'), 10);
 
-        if (!dataInicio || !diasNecessarios || diasNecessarios < 1) {
-            return NextResponse.json(TODOS_PCS, { status: 200 });
+        // Se tem parâmetro stats, retorna estatísticas
+        if (searchParams.has('stats')) {
+            const periodo = searchParams.get('periodo') || 'semestre';
+
+            let dataInicio;
+            const hoje = new Date();
+
+            switch (periodo) {
+                case 'semana':
+                    dataInicio = new Date(hoje);
+                    dataInicio.setDate(hoje.getDate() - 7);
+                    break;
+                case 'mes':
+                    dataInicio = new Date(hoje);
+                    dataInicio.setMonth(hoje.getMonth() - 1);
+                    break;
+                case 'semestre':
+                    dataInicio = new Date(hoje);
+                    dataInicio.setMonth(hoje.getMonth() - 6);
+                    break;
+                case 'ano':
+                    dataInicio = new Date(hoje);
+                    dataInicio.setFullYear(hoje.getFullYear() - 1);
+                    break;
+                default:
+                    dataInicio = new Date(hoje);
+                    dataInicio.setMonth(hoje.getMonth() - 6);
+            }
+
+            const dataInicioISO = dataInicio.toISOString().split('T')[0];
+
+            // Query para obter dados agregados por dia
+            const statsQuery = `
+                SELECT
+                    DATE(data_inicio) as data,
+                    COUNT(*) as total_reservas,
+                    COUNT(DISTINCT pc_numero) as pcs_distintos,
+                    SUM(dias_necessarios) as total_dias_reservados
+                FROM agendamentos
+                WHERE data_inicio >= ?
+                GROUP BY DATE(data_inicio)
+                ORDER BY data_inicio ASC;
+            `;
+
+            const [stats] = await pool.execute(statsQuery, [dataInicioISO]);
+
+            // Query para estatísticas gerais
+            const summaryQuery = `
+                SELECT
+                    COUNT(*) as total_reservas,
+                    SUM(dias_necessarios) as total_dias,
+                    AVG(dias_necessarios) as media_dias,
+                    COUNT(DISTINCT pc_numero) as total_pcs_usados
+                FROM agendamentos
+                WHERE data_inicio >= ?;
+            `;
+
+            const [summary] = await pool.execute(summaryQuery, [dataInicioISO]);
+
+            // Query para obter o PC mais utilizado
+            const pcPopularQuery = `
+                SELECT
+                    pc_numero,
+                    COUNT(*) as num_reservas,
+                    SUM(dias_necessarios) as dias_totais
+                FROM agendamentos
+                WHERE data_inicio >= ?
+                GROUP BY pc_numero
+                ORDER BY num_reservas DESC
+                LIMIT 1;
+            `;
+
+            const [pcPopular] = await pool.execute(pcPopularQuery, [dataInicioISO]);
+
+            return NextResponse.json({
+                stats,
+                summary: summary[0] || { total_reservas: 0, total_dias: 0, media_dias: 0, total_pcs_usados: 0 },
+                pcMaisUsado: pcPopular[0] || null,
+                periodo,
+                dataInicio: dataInicioISO
+            }, { status: 200 });
         }
 
-        const dataFimReserva = new Date(dataInicio);
-        dataFimReserva.setDate(dataFimReserva.getDate() + diasNecessarios - 1);
-        const dataFimISO = dataFimReserva.toISOString().split('T')[0];
+        // Se tem parâmetros dataInicial e diasNecessarios, retorna PCs disponíveis
+        if (searchParams.has('dataInicial') && searchParams.has('diasNecessarios')) {
+            const dataInicio = searchParams.get('dataInicial');
+            const diasNecessarios = parseInt(searchParams.get('diasNecessarios'), 10);
 
-        const occupiedQuery = `
-            SELECT DISTINCT pc_numero
-            FROM agendamentos
-            WHERE
-                ativo = TRUE AND
-                data_inicio <= ? AND DATE_ADD(data_inicio, INTERVAL dias_necessarios - 1 DAY) >= ?;
-        `;
+            if (!dataInicio || !diasNecessarios || diasNecessarios < 1) {
+                return NextResponse.json(TODOS_PCS, { status: 200 });
+            }
 
-        const [occupiedResult] = await pool.execute(occupiedQuery, [dataFimISO, dataInicio]);
-        const occupiedPcs = occupiedResult.map(row => row.pc_numero);
-        const availablePcs = TODOS_PCS.filter(pc => !occupiedPcs.includes(pc));
+            const dataFimReserva = new Date(dataInicio);
+            dataFimReserva.setDate(dataFimReserva.getDate() + diasNecessarios - 1);
+            const dataFimISO = dataFimReserva.toISOString().split('T')[0];
 
-        return NextResponse.json(availablePcs, { status: 200 });
+            const occupiedQuery = `
+                SELECT DISTINCT pc_numero
+                FROM agendamentos
+                WHERE
+                    ativo = TRUE AND
+                    data_inicio <= ? AND DATE_ADD(data_inicio, INTERVAL dias_necessarios - 1 DAY) >= ?;
+            `;
+
+            const [occupiedResult] = await pool.execute(occupiedQuery, [dataFimISO, dataInicio]);
+            const occupiedPcs = occupiedResult.map(row => row.pc_numero);
+            const availablePcs = TODOS_PCS.filter(pc => !occupiedPcs.includes(pc));
+
+            return NextResponse.json(availablePcs, { status: 200 });
+        }
+
+        // Caso padrão: retorna todos os agendamentos ativos
+        const today = new Date().toISOString().split('T')[0];
+
+        const [agendamentos] = await pool.execute(
+            `SELECT
+                 id,
+                 DATE_FORMAT(data_inicio, '%Y-%m-%d') AS data_inicio,
+                 dias_necessarios,
+                 pc_numero,
+                 agendado_por
+             FROM agendamentos
+             WHERE ativo = TRUE AND DATE_ADD(data_inicio, INTERVAL dias_necessarios - 0 DAY) >= ?
+             ORDER BY data_inicio ASC;`,
+            [today]
+        );
+
+        const [totalResult] = await pool.execute(
+            `SELECT COUNT(*) as total FROM agendamentos;`
+        );
+        const totalAgendamentos = totalResult[0].total;
+
+        return NextResponse.json({ agendamentos, totalAgendamentos }, { status: 200 });
 
     } catch (error) {
-        console.error('Erro ao buscar PCs disponíveis (GET_DISPONIVEIS):', error);
-        return NextResponse.json({ error: 'Erro ao verificar disponibilidade. Cheque a conexão com o DB.' }, { status: 503 });
+        console.error('Erro ao buscar dados:', error);
+        return NextResponse.json({ error: 'Erro ao buscar dados do banco de dados.' }, { status: 503 });
     }
 }
 
@@ -211,42 +301,8 @@ export async function POST(request) {
         }, { status: 201 });
 
     } catch (error) {
-        console.error('Erro ao processar agendamento (POST):', error);
+        console.error('Erro ao processar agendamento:', error);
         return NextResponse.json({ error: 'Erro de infraestrutura ao salvar o agendamento.' }, { status: 503 });
-    }
-}
-
-export async function GET_ALL_AGENDAMENTOS() {
-    const connectionError = checkDbConnection();
-    if (connectionError) return connectionError;
-
-    try {
-        const today = new Date().toISOString().split('T')[0];
-
-        const [agendamentos] = await pool.execute(
-            `SELECT
-                 id,
-                 DATE_FORMAT(data_inicio, '%Y-%m-%d') AS data_inicio,
-                 dias_necessarios,
-                 pc_numero,
-                 agendado_por
-             FROM agendamentos
-             WHERE ativo = TRUE AND DATE_ADD(data_inicio, INTERVAL dias_necessarios - 0 DAY) >= ?
-             ORDER BY data_inicio ASC;`,
-            [today]
-        );
-
-        // Buscar o total de agendamentos (incluindo inativos e expirados)
-        const [totalResult] = await pool.execute(
-            `SELECT COUNT(*) as total FROM agendamentos;`
-        );
-        const totalAgendamentos = totalResult[0].total;
-
-        return NextResponse.json({ agendamentos, totalAgendamentos }, { status: 200 });
-
-    } catch (error) {
-        console.error('Erro ao buscar agendamentos (GET):', error);
-        return NextResponse.json({ error: 'Erro de infraestrutura ao carregar a lista de agendamentos.' }, { status: 503 });
     }
 }
 
@@ -280,7 +336,7 @@ export async function DELETE(request) {
         return NextResponse.json({ message: 'Agendamento cancelado com sucesso.', refreshDisponiveis: true }, { status: 200 });
 
     } catch (error) {
-        console.error('Erro ao processar cancelamento (DELETE):', error);
+        console.error('Erro ao processar cancelamento:', error);
         return NextResponse.json({ error: 'Erro de infraestrutura ao cancelar o agendamento.' }, { status: 503 });
     }
 }
@@ -304,8 +360,8 @@ export async function PATCH(request) {
 
         // Buscar o agendamento atual
         const [agendamentoAtual] = await pool.execute(
-            `SELECT id, data_inicio, dias_necessarios, pc_numero, pin 
-             FROM agendamentos 
+            `SELECT id, data_inicio, dias_necessarios, pc_numero, pin
+             FROM agendamentos
              WHERE id = ? AND ativo = TRUE`,
             [id]
         );
@@ -370,8 +426,8 @@ export async function PATCH(request) {
 
         // Atualizar o agendamento com os novos dias
         const updateQuery = `
-            UPDATE agendamentos 
-            SET dias_necessarios = ? 
+            UPDATE agendamentos
+            SET dias_necessarios = ?
             WHERE id = ?;
         `;
 
@@ -384,110 +440,7 @@ export async function PATCH(request) {
         }, { status: 200 });
 
     } catch (error) {
-        console.error('Erro ao processar extensão (PATCH):', error);
+        console.error('Erro ao processar extensão:', error);
         return NextResponse.json({ error: 'Erro de infraestrutura ao estender o agendamento.' }, { status: 503 });
     }
-}
-
-export async function GET_STATISTICS(request) {
-    const connectionError = checkDbConnection();
-    if (connectionError) return connectionError;
-
-    try {
-        const { searchParams } = new URL(request.url);
-        const periodo = searchParams.get('periodo') || 'semestre'; // semana, mes, semestre, ano
-
-        let dataInicio;
-        const hoje = new Date();
-
-        switch (periodo) {
-            case 'semana':
-                dataInicio = new Date(hoje);
-                dataInicio.setDate(hoje.getDate() - 7);
-                break;
-            case 'mes':
-                dataInicio = new Date(hoje);
-                dataInicio.setMonth(hoje.getMonth() - 1);
-                break;
-            case 'semestre':
-                dataInicio = new Date(hoje);
-                dataInicio.setMonth(hoje.getMonth() - 6);
-                break;
-            case 'ano':
-                dataInicio = new Date(hoje);
-                dataInicio.setFullYear(hoje.getFullYear() - 1);
-                break;
-            default:
-                dataInicio = new Date(hoje);
-                dataInicio.setMonth(hoje.getMonth() - 6);
-        }
-
-        const dataInicioISO = dataInicio.toISOString().split('T')[0];
-
-        // Query para obter dados agregados por dia
-        const statsQuery = `
-            SELECT 
-                DATE(data_inicio) as data,
-                COUNT(*) as total_reservas,
-                COUNT(DISTINCT pc_numero) as pcs_distintos,
-                SUM(dias_necessarios) as total_dias_reservados
-            FROM agendamentos
-            WHERE data_inicio >= ?
-            GROUP BY DATE(data_inicio)
-            ORDER BY data_inicio ASC;
-        `;
-
-        const [stats] = await pool.execute(statsQuery, [dataInicioISO]);
-
-        // Query para estatísticas gerais
-        const summaryQuery = `
-            SELECT 
-                COUNT(*) as total_reservas,
-                SUM(dias_necessarios) as total_dias,
-                AVG(dias_necessarios) as media_dias,
-                COUNT(DISTINCT pc_numero) as total_pcs_usados
-            FROM agendamentos
-            WHERE data_inicio >= ?;
-        `;
-
-        const [summary] = await pool.execute(summaryQuery, [dataInicioISO]);
-
-        // Query para obter o PC mais utilizado
-        const pcPopularQuery = `
-            SELECT 
-                pc_numero,
-                COUNT(*) as num_reservas,
-                SUM(dias_necessarios) as dias_totais
-            FROM agendamentos
-            WHERE data_inicio >= ?
-            GROUP BY pc_numero
-            ORDER BY num_reservas DESC
-            LIMIT 1;
-        `;
-
-        const [pcPopular] = await pool.execute(pcPopularQuery, [dataInicioISO]);
-
-        return NextResponse.json({
-            stats,
-            summary: summary[0],
-            pcMaisUsado: pcPopular[0] || null,
-            periodo,
-            dataInicio: dataInicioISO
-        }, { status: 200 });
-
-    } catch (error) {
-        console.error('Erro ao buscar estatísticas (GET_STATISTICS):', error);
-        return NextResponse.json({ error: 'Erro ao carregar estatísticas.' }, { status: 503 });
-    }
-}
-
-export async function GET(request) {
-    const { searchParams } = new URL(request.url);
-    if (searchParams.has('stats')) {
-        return GET_STATISTICS(request);
-    }
-    if (searchParams.has('dataInicial') && searchParams.has('diasNecessarios')) {
-        return GET_DISPONIVEIS(request);
-    }
-    return GET_ALL_AGENDAMENTOS();
 }
