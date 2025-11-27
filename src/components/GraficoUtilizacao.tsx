@@ -105,7 +105,29 @@ const GraficoUtilizacao: React.FC = () => {
                     console.error('Dados inválidos recebidos da API');
                     setStatsData(generateMockStatsData(periodo));
                 } else {
-                    setStatsData(data);
+                    // Normalizar todos os valores numéricos para garantir que sejam números
+                    const normalizedData: StatsResponse = {
+                        ...data,
+                        stats: (data.stats || []).map((item: any) => ({
+                            data: item.data,
+                            total_reservas: Number(item.total_reservas || 0),
+                            pcs_distintos: Number(item.pcs_distintos || 0),
+                            total_dias_reservados: Number(item.total_dias_reservados || 0)
+                        })),
+                        summary: {
+                            total_reservas: Number(data.summary?.total_reservas || 0),
+                            total_dias: Number(data.summary?.total_dias || 0),
+                            media_dias: Number(data.summary?.media_dias || 0),
+                            total_pcs_usados: Number(data.summary?.total_pcs_usados || 0)
+                        },
+                        pcMaisUsado: data.pcMaisUsado ? {
+                            pc_numero: data.pcMaisUsado.pc_numero || 'N/A',
+                            num_reservas: Number(data.pcMaisUsado.num_reservas || 0),
+                            dias_totais: Number(data.pcMaisUsado.dias_totais || 0)
+                        } : null
+                    };
+                    console.log('Dados normalizados:', normalizedData);
+                    setStatsData(normalizedData);
                 }
             } else {
                 console.error("Erro na resposta da API:", response.status, response.statusText);
@@ -231,21 +253,21 @@ const GraficoUtilizacao: React.FC = () => {
                     <div className="stat-icon">📅</div>
                     <div className="stat-content">
                         <span className="stat-label">Total de Reservas</span>
-                        <span className="stat-value">{statsData.summary?.total_reservas || 0}</span>
+                        <span className="stat-value">{Number(statsData.summary?.total_reservas || 0)}</span>
                     </div>
                 </div>
                 <div className="stat-card">
                     <div className="stat-icon">⏱️</div>
                     <div className="stat-content">
                         <span className="stat-label">Dias Totais</span>
-                        <span className="stat-value">{statsData.summary?.total_dias || 0}</span>
+                        <span className="stat-value">{Number(statsData.summary?.total_dias || 0)}</span>
                     </div>
                 </div>
                 <div className="stat-card">
                     <div className="stat-icon">📊</div>
                     <div className="stat-content">
                         <span className="stat-label">Média de Dias</span>
-                        <span className="stat-value">{(statsData.summary?.media_dias || 0).toFixed(1)}</span>
+                        <span className="stat-value">{Number(statsData.summary?.media_dias || 0).toFixed(1)}</span>
                     </div>
                 </div>
                 {statsData.pcMaisUsado && (
@@ -254,7 +276,7 @@ const GraficoUtilizacao: React.FC = () => {
                         <div className="stat-content">
                             <span className="stat-label">PC Mais Usado</span>
                             <span className="stat-value">{statsData.pcMaisUsado.pc_numero || 'N/A'}</span>
-                            <span className="stat-detail">{statsData.pcMaisUsado.num_reservas || 0} reservas</span>
+                            <span className="stat-detail">{Number(statsData.pcMaisUsado.num_reservas || 0)} reservas</span>
                         </div>
                     </div>
                 )}
