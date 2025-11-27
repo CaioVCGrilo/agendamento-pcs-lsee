@@ -389,8 +389,103 @@ export async function PATCH(request) {
     }
 }
 
+export async function GET_STATISTICS(request) {
+    const connectionError = checkDbConnection();
+    if (connectionError) return connectionError;
+
+    try {
+        const { searchParams } = new URL(request.url);
+        const periodo = searchParams.get('periodo') || 'semestre'; // semana, mes, semestre, ano
+
+        let dataInicio;
+        const hoje = new Date();
+
+        switch (periodo) {
+            case 'semana':
+                dataInicio = new Date(hoje);
+                dataInicio.setDate(hoje.getDate() - 7);
+                break;
+            case 'mes':
+                dataInicio = new Date(hoje);
+                dataInicio.setMonth(hoje.getMonth() - 1);
+                break;
+            case 'semestre':
+                dataInicio = new Date(hoje);
+                dataInicio.setMonth(hoje.getMonth() - 6);
+                break;
+            case 'ano':
+                dataInicio = new Date(hoje);
+                dataInicio.setFullYear(hoje.getFullYear() - 1);
+                break;
+            default:
+                dataInicio = new Date(hoje);
+                dataInicio.setMonth(hoje.getMonth() - 6);
+        }
+
+        const dataInicioISO = dataInicio.toISOString().split('T')[0];
+
+        // Query para obter dados agregados por dia
+        const statsQuery = `
+            SELECT 
+                DATE(data_inicio) as data,
+                COUNT(*) as total_reservas,
+                COUNT(DISTINCT pc_numero) as pcs_distintos,
+                SUM(dias_necessarios) as total_dias_reservados
+            FROM agendamentos
+            WHERE data_inicio >= ?
+            GROUP BY DATE(data_inicio)
+            ORDER BY data_inicio ASC;
+        `;
+
+        const [stats] = await pool.execute(statsQuery, [dataInicioISO]);
+
+        // Query para estatísticas gerais
+        const summaryQuery = `
+            SELECT 
+                COUNT(*) as total_reservas,
+                SUM(dias_necessarios) as total_dias,
+                AVG(dias_necessarios) as media_dias,
+                COUNT(DISTINCT pc_numero) as total_pcs_usados
+            FROM agendamentos
+            WHERE data_inicio >= ?;
+        `;
+
+        const [summary] = await pool.execute(summaryQuery, [dataInicioISO]);
+
+        // Query para obter o PC mais utilizado
+        const pcPopularQuery = `
+            SELECT 
+                pc_numero,
+                COUNT(*) as num_reservas,
+                SUM(dias_necessarios) as dias_totais
+            FROM agendamentos
+            WHERE data_inicio >= ?
+            GROUP BY pc_numero
+            ORDER BY num_reservas DESC
+            LIMIT 1;
+        `;
+
+        const [pcPopular] = await pool.execute(pcPopularQuery, [dataInicioISO]);
+
+        return NextResponse.json({
+            stats,
+            summary: summary[0],
+            pcMaisUsado: pcPopular[0] || null,
+            periodo,
+            dataInicio: dataInicioISO
+        }, { status: 200 });
+
+    } catch (error) {
+        console.error('Erro ao buscar estatísticas (GET_STATISTICS):', error);
+        return NextResponse.json({ error: 'Erro ao carregar estatísticas.' }, { status: 503 });
+    }
+}
+
 export async function GET(request) {
     const { searchParams } = new URL(request.url);
+    if (searchParams.has('stats')) {
+        return GET_STATISTICS(request);
+    }
     if (searchParams.has('dataInicial') && searchParams.has('diasNecessarios')) {
         return GET_DISPONIVEIS(request);
     }

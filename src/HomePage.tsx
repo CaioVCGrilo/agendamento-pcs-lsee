@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState, useRef } from 'react';
 import FormularioAgendamento from './components/FormularioAgendamento';
+import GraficoUtilizacao from './components/GraficoUtilizacao';
 import './App.css';
 
 // Utility function to calculate the end date
@@ -278,6 +279,8 @@ export default function HomePage() {
                             </table>
                         </div>
                     )}
+
+                    <GraficoUtilizacao />
                 </div>
             </div>
             <footer className="footer">
