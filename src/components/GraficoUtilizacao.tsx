@@ -132,7 +132,7 @@ const generateMockStatsData = (periodo: Periodo): StatsResponse => {
 };
 
 const GraficoUtilizacao: React.FC = () => {
-    const [periodo, setPeriodo] = useState<Periodo>('semestre');
+    const [periodo, setPeriodo] = useState<Periodo>('mes');
     const [loading, setLoading] = useState(true);
     const [statsData, setStatsData] = useState<StatsResponse | null>(null);
     const [error, setError] = useState<string | null>(null);
