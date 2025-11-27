@@ -143,17 +143,36 @@ export async function GET(request) {
             const dataInicioISO = dataInicio.toISOString().split('T')[0];
             console.log('Data início filtro:', dataInicioISO);
 
-            // Query para obter dados agregados por dia
+            // Query para obter dados agregados por dia - UTILIZAÇÃO REAL DOS PCs
             const statsQuery = `
                 SELECT
-                    DATE(data_inicio) as data,
-                    COUNT(*) as total_reservas,
-                    COUNT(DISTINCT pc_numero) as pcs_distintos,
-                    SUM(dias_necessarios) as total_dias_reservados
-                FROM agendamentos
-                WHERE data_inicio >= ?
-                GROUP BY DATE(data_inicio)
-                ORDER BY DATE(data_inicio) ASC;
+                    dia.data_dia as data,
+                    COUNT(DISTINCT CASE WHEN a.data_inicio <= dia.data_dia
+                                       AND DATE_ADD(a.data_inicio, INTERVAL a.dias_necessarios - 1 DAY) >= dia.data_dia
+                                       THEN a.pc_numero END) as pcs_distintos,
+                    COUNT(CASE WHEN a.data_inicio <= dia.data_dia
+                              AND DATE_ADD(a.data_inicio, INTERVAL a.dias_necessarios - 1 DAY) >= dia.data_dia
+                              THEN 1 END) as total_reservas_ativas,
+                    SUM(CASE WHEN a.data_inicio <= dia.data_dia
+                            AND DATE_ADD(a.data_inicio, INTERVAL a.dias_necessarios - 1 DAY) >= dia.data_dia
+                            THEN 1 ELSE 0 END) as total_dias_reservados
+                FROM (
+                    SELECT DATE_SUB(CURDATE(), INTERVAL n DAY) as data_dia
+                    FROM (
+                        SELECT 0 as n UNION ALL SELECT 1 UNION ALL SELECT 2 UNION ALL SELECT 3 UNION ALL SELECT 4 UNION ALL
+                        SELECT 5 UNION ALL SELECT 6 UNION ALL SELECT 7 UNION ALL SELECT 8 UNION ALL SELECT 9 UNION ALL
+                        SELECT 10 UNION ALL SELECT 11 UNION ALL SELECT 12 UNION ALL SELECT 13 UNION ALL SELECT 14 UNION ALL
+                        SELECT 15 UNION ALL SELECT 16 UNION ALL SELECT 17 UNION ALL SELECT 18 UNION ALL SELECT 19 UNION ALL
+                        SELECT 20 UNION ALL SELECT 21 UNION ALL SELECT 22 UNION ALL SELECT 23 UNION ALL SELECT 24 UNION ALL
+                        SELECT 25 UNION ALL SELECT 26 UNION ALL SELECT 27 UNION ALL SELECT 28 UNION ALL SELECT 29
+                    ) numbers
+                ) dia
+                LEFT JOIN agendamentos a ON a.ativo = 1
+                    AND a.data_inicio <= dia.data_dia
+                    AND DATE_ADD(a.data_inicio, INTERVAL a.dias_necessarios - 1 DAY) >= dia.data_dia
+                WHERE dia.data_dia >= ?
+                GROUP BY dia.data_dia
+                ORDER BY dia.data_dia ASC;
             `;
 
             console.log('Executando query de estatísticas...');

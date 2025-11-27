@@ -15,8 +15,8 @@ import './GraficoUtilizacao.css';
 
 interface StatData {
     data: string;
-    total_reservas: number;
     pcs_distintos: number;
+    total_reservas_ativas: number;
     total_dias_reservados: number;
 }
 
@@ -79,13 +79,13 @@ const generateMockStatsData = (periodo: Periodo): StatsResponse => {
 
         stats.push({
             data: data.toISOString().split('T')[0], // Formato YYYY-MM-DD
-            total_reservas: Math.floor(Math.random() * 8 * multiplicador) + 1,
+            total_reservas_ativas: Math.floor(Math.random() * 8 * multiplicador) + 1,
             pcs_distintos: Math.floor(Math.random() * 4) + 1,
             total_dias_reservados: Math.floor(Math.random() * 15 * multiplicador) + 5
         });
     }
 
-    const totalReservas = Number(stats.reduce((acc, item) => acc + (item.total_reservas || 0), 0));
+    const totalReservas = Number(stats.reduce((acc, item) => acc + (item.total_reservas_ativas || 0), 0));
     const totalDias = Number(stats.reduce((acc, item) => acc + (item.total_dias_reservados || 0), 0));
     const mediaDias = totalReservas > 0 ? Number((totalDias / totalReservas).toFixed(1)) : 0;
     const totalPcsUsados = Math.max(...stats.map(item => item.pcs_distintos), 1);
@@ -134,7 +134,7 @@ const GraficoUtilizacao: React.FC = () => {
                         ...data,
                         stats: (data.stats || []).map((item: any) => ({
                             data: item.data,
-                            total_reservas: Number(item.total_reservas || 0),
+                            total_reservas_ativas: Number(item.total_reservas_ativas || 0),
                             pcs_distintos: Number(item.pcs_distintos || 0),
                             total_dias_reservados: Number(item.total_dias_reservados || 0)
                         })),
@@ -182,7 +182,16 @@ const GraficoUtilizacao: React.FC = () => {
                 return 'Data Inválida';
             }
 
-            const data = new Date(dataStr + 'T00:00:00');
+            let data;
+
+            // Verificar se é uma data ISO completa (com T e Z)
+            if (dataStr.includes('T') && dataStr.includes('Z')) {
+                // Já é uma data ISO completa, usar diretamente
+                data = new Date(dataStr);
+            } else {
+                // É apenas uma data YYYY-MM-DD, adicionar tempo
+                data = new Date(dataStr + 'T00:00:00');
+            }
 
             // Verificar se a data é válida
             if (isNaN(data.getTime())) {
@@ -240,7 +249,7 @@ const GraficoUtilizacao: React.FC = () => {
     // Garantir que os dados estão válidos
     const chartData = statsData.stats.map(item => ({
         data: formatarData(item.data),
-        reservas: item.total_reservas || 0,
+        reservas: item.total_reservas_ativas || 0,
         pcsDistintos: item.pcs_distintos || 0,
         diasReservados: item.total_dias_reservados || 0
     }));
@@ -433,4 +442,3 @@ const GraficoUtilizacao: React.FC = () => {
 };
 
 export default GraficoUtilizacao;
-
