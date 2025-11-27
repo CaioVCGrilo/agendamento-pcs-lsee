@@ -1,7 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import {
-    LineChart,
-    Line,
     AreaChart,
     Area,
     XAxis,
@@ -112,7 +110,6 @@ const GraficoUtilizacao: React.FC = () => {
     const [periodo, setPeriodo] = useState<Periodo>('semestre');
     const [loading, setLoading] = useState(true);
     const [statsData, setStatsData] = useState<StatsResponse | null>(null);
-    const [tipoGrafico, setTipoGrafico] = useState<'linha' | 'area'>('area');
     const [error, setError] = useState<string | null>(null);
 
     const fetchStatistics = useCallback(async () => {
@@ -199,10 +196,19 @@ const GraficoUtilizacao: React.FC = () => {
                 return 'Data Inválida';
             }
 
-            if (periodo === 'semana' || periodo === 'mes') {
+            // Melhorar formatação baseada no período para evitar sobreposição
+            if (periodo === 'semana') {
+                // Semana: mostrar dia e mês (ex: 15/11)
                 return data.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+            } else if (periodo === 'mes') {
+                // Mês: mostrar dia e mês (ex: 15/11)
+                return data.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+            } else if (periodo === 'semestre') {
+                // Semestre: mostrar mês e ano (ex: nov/25)
+                return data.toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' });
             } else {
-                return data.toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' });
+                // Ano: mostrar mês e ano (ex: nov/25)
+                return data.toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' });
             }
         } catch (error) {
             console.error('Erro ao formatar data:', dataStr, error);
@@ -272,17 +278,6 @@ const GraficoUtilizacao: React.FC = () => {
                 <h2 className="grafico-title">📊 Estatísticas de Utilização dos Recursos</h2>
                 <div className="grafico-controls">
                     <div className="control-group">
-                        <label>Tipo:</label>
-                        <select 
-                            value={tipoGrafico} 
-                            onChange={(e) => setTipoGrafico(e.target.value as 'linha' | 'area')}
-                            className="tipo-select"
-                        >
-                            <option value="area">Área</option>
-                            <option value="linha">Linha</option>
-                        </select>
-                    </div>
-                    <div className="control-group">
                         <label>Período:</label>
                         <select 
                             value={periodo} 
@@ -338,103 +333,62 @@ const GraficoUtilizacao: React.FC = () => {
 
             <div className="grafico-chart">
                 <ResponsiveContainer width="100%" height={400}>
-                    {tipoGrafico === 'area' ? (
-                        <AreaChart data={chartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
-                            <defs>
-                                <linearGradient id="colorReservas" x1="0" y1="0" x2="0" y2="1">
-                                    <stop offset="5%" stopColor="#2563eb" stopOpacity={0.8}/>
-                                    <stop offset="95%" stopColor="#2563eb" stopOpacity={0.1}/>
-                                </linearGradient>
-                                <linearGradient id="colorPCs" x1="0" y1="0" x2="0" y2="1">
-                                    <stop offset="5%" stopColor="#10b981" stopOpacity={0.8}/>
-                                    <stop offset="95%" stopColor="#10b981" stopOpacity={0.1}/>
-                                </linearGradient>
-                            </defs>
-                            <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                            <XAxis 
-                                dataKey="data" 
-                                stroke="#6b7280"
-                                style={{ fontSize: '12px' }}
-                            />
-                            <YAxis 
-                                stroke="#6b7280"
-                                style={{ fontSize: '12px' }}
-                            />
-                            <Tooltip 
-                                contentStyle={{ 
-                                    backgroundColor: 'rgba(255, 255, 255, 0.95)', 
-                                    border: '1px solid #e5e7eb',
-                                    borderRadius: '8px',
-                                    boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)'
-                                }}
-                            />
-                            <Legend 
-                                wrapperStyle={{ paddingTop: '20px' }}
-                                iconType="circle"
-                            />
-                            <Area 
-                                type="monotone" 
-                                dataKey="reservas" 
-                                stroke="#2563eb" 
-                                fillOpacity={1} 
-                                fill="url(#colorReservas)"
-                                name="Reservas"
-                                strokeWidth={2}
-                            />
-                            <Area 
-                                type="monotone" 
-                                dataKey="pcsDistintos" 
-                                stroke="#10b981" 
-                                fillOpacity={1} 
-                                fill="url(#colorPCs)"
-                                name="PCs Distintos"
-                                strokeWidth={2}
-                            />
-                        </AreaChart>
-                    ) : (
-                        <LineChart data={chartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
-                            <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                            <XAxis 
-                                dataKey="data" 
-                                stroke="#6b7280"
-                                style={{ fontSize: '12px' }}
-                            />
-                            <YAxis 
-                                stroke="#6b7280"
-                                style={{ fontSize: '12px' }}
-                            />
-                            <Tooltip 
-                                contentStyle={{ 
-                                    backgroundColor: 'rgba(255, 255, 255, 0.95)', 
-                                    border: '1px solid #e5e7eb',
-                                    borderRadius: '8px',
-                                    boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)'
-                                }}
-                            />
-                            <Legend 
-                                wrapperStyle={{ paddingTop: '20px' }}
-                                iconType="circle"
-                            />
-                            <Line 
-                                type="monotone" 
-                                dataKey="reservas" 
-                                stroke="#2563eb" 
-                                strokeWidth={3}
-                                dot={{ fill: '#2563eb', r: 4 }}
-                                activeDot={{ r: 6 }}
-                                name="Reservas"
-                            />
-                            <Line 
-                                type="monotone" 
-                                dataKey="pcsDistintos" 
-                                stroke="#10b981" 
-                                strokeWidth={3}
-                                dot={{ fill: '#10b981', r: 4 }}
-                                activeDot={{ r: 6 }}
-                                name="PCs Distintos"
-                            />
-                        </LineChart>
-                    )}
+                    <AreaChart data={chartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                        <defs>
+                            <linearGradient id="colorReservas" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="5%" stopColor="#2563eb" stopOpacity={0.8}/>
+                                <stop offset="95%" stopColor="#2563eb" stopOpacity={0.1}/>
+                            </linearGradient>
+                            <linearGradient id="colorPCs" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="5%" stopColor="#10b981" stopOpacity={0.8}/>
+                                <stop offset="95%" stopColor="#10b981" stopOpacity={0.1}/>
+                            </linearGradient>
+                        </defs>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                        <XAxis
+                            dataKey="data"
+                            stroke="#6b7280"
+                            style={{ fontSize: '12px' }}
+                            angle={-45}
+                            textAnchor="end"
+                            height={80}
+                            interval="preserveStartEnd"
+                        />
+                        <YAxis
+                            stroke="#6b7280"
+                            style={{ fontSize: '12px' }}
+                        />
+                        <Tooltip
+                            contentStyle={{
+                                backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                                border: '1px solid #e5e7eb',
+                                borderRadius: '8px',
+                                boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)'
+                            }}
+                        />
+                        <Legend
+                            wrapperStyle={{ paddingTop: '20px' }}
+                            iconType="circle"
+                        />
+                        <Area
+                            type="monotone"
+                            dataKey="reservas"
+                            stroke="#2563eb"
+                            fillOpacity={1}
+                            fill="url(#colorReservas)"
+                            name="Reservas"
+                            strokeWidth={2}
+                        />
+                        <Area
+                            type="monotone"
+                            dataKey="pcsDistintos"
+                            stroke="#10b981"
+                            fillOpacity={1}
+                            fill="url(#colorPCs)"
+                            name="histórico atualização"
+                            strokeWidth={2}
+                        />
+                    </AreaChart>
                 </ResponsiveContainer>
             </div>
         </div>
