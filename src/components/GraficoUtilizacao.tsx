@@ -379,15 +379,6 @@ const GraficoUtilizacao: React.FC = () => {
                             name="Reservas"
                             strokeWidth={2}
                         />
-                        <Area
-                            type="monotone"
-                            dataKey="pcsDistintos"
-                            stroke="#10b981"
-                            fillOpacity={1}
-                            fill="url(#colorPCs)"
-                            name="histórico atualização"
-                            strokeWidth={2}
-                        />
                     </AreaChart>
                 </ResponsiveContainer>
             </div>
