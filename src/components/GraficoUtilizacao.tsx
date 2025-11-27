@@ -46,29 +46,34 @@ const generateMockStatsData = (periodo: Periodo): StatsResponse => {
     const hoje = new Date();
     const stats: StatData[] = [];
 
-    // Definir número de dias baseado no período
+    // Definir número de dias e intervalo baseado no período
     let diasNoPeriodo: number;
+    let intervalo: number; // Agregar dados a cada X dias
+
     switch (periodo) {
         case 'semana':
             diasNoPeriodo = 7;
+            intervalo = 1; // Mostrar todos os dias
             break;
         case 'mes':
             diasNoPeriodo = 30;
+            intervalo = 1; // Mostrar todos os dias
             break;
         case 'semestre':
             diasNoPeriodo = 180;
+            intervalo = 7; // Agregar por semana
             break;
         case 'ano':
             diasNoPeriodo = 365;
+            intervalo = 15; // Agregar por quinzena
             break;
         default:
             diasNoPeriodo = 180;
+            intervalo = 7;
     }
 
-    // Limitar a 30 dias para performance, mas manter a lógica do período
-    const diasParaMostrar = Math.min(diasNoPeriodo, 30);
-
-    for (let i = diasParaMostrar - 1; i >= 0; i--) {
+    // Gerar dados agregados
+    for (let i = diasNoPeriodo - intervalo; i >= 0; i -= intervalo) {
         const data = new Date(hoje);
         data.setDate(hoje.getDate() - i);
 
@@ -365,6 +370,13 @@ const GraficoUtilizacao: React.FC = () => {
                                 borderRadius: '8px',
                                 boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)'
                             }}
+                            formatter={(value: any, name: string) => {
+                                if (name === 'Reservas') return [value, 'Reservas'];
+                                if (name === 'PCs Distintos') return [value, 'PCs Distintos'];
+                                if (name === 'Dias Reservados') return [value, 'Dias Reservados'];
+                                return [value, name];
+                            }}
+                            labelFormatter={(label: string) => `Data: ${label}`}
                         />
                         <Legend
                             wrapperStyle={{ paddingTop: '20px' }}
