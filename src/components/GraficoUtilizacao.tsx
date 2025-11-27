@@ -72,13 +72,33 @@ const generateMockStatsData = (periodo: Periodo): StatsResponse => {
             intervalo = 7;
     }
 
-    // Gerar dados agregados
-    for (let i = diasNoPeriodo - intervalo; i >= 0; i -= intervalo) {
-        const data = new Date(hoje);
-        data.setDate(hoje.getDate() - i);
+    // Calcular data de início baseado no período
+    const dataInicio = new Date(hoje);
+    switch (periodo) {
+        case 'semana':
+            dataInicio.setDate(hoje.getDate() - 7);
+            break;
+        case 'mes':
+            dataInicio.setMonth(hoje.getMonth() - 1);
+            break;
+        case 'semestre':
+            dataInicio.setMonth(hoje.getMonth() - 6);
+            break;
+        case 'ano':
+            dataInicio.setFullYear(hoje.getFullYear() - 1);
+            break;
+    }
+
+    // Gerar dados agregados a partir da data de início
+    for (let i = 0; i <= diasNoPeriodo; i += intervalo) {
+        const data = new Date(dataInicio);
+        data.setDate(dataInicio.getDate() + i);
+
+        // Não adicionar datas futuras
+        if (data > hoje) break;
 
         // Gerar dados diferentes baseados no período (mais dados para períodos maiores)
-        const multiplicador = periodo === 'semana' ? 1 : periodo === 'mes' ? 2 : periodo === 'semestre' ? 3 : 4;
+        const multiplicador = periodo === 'semana' ? 1 : periodo === 'mes' ? 1.5 : periodo === 'semestre' ? 2 : 2.5;
 
         stats.push({
             data: data.toISOString().split('T')[0], // Formato YYYY-MM-DD

@@ -143,8 +143,31 @@ export async function GET(request) {
             const dataInicioISO = dataInicio.toISOString().split('T')[0];
             console.log('Data início filtro:', dataInicioISO);
 
-            // Query para obter dados agregados por dia - UTILIZAÇÃO REAL DOS PCs
+            // Determinar intervalo de agregação baseado no período
+            let intervalo = 1;
+            switch (periodo) {
+                case 'semana':
+                case 'mes':
+                    intervalo = 1; // Diário
+                    break;
+                case 'semestre':
+                    intervalo = 7; // Semanal
+                    break;
+                case 'ano':
+                    intervalo = 15; // Quinzenal
+                    break;
+            }
+
+            // Query para obter dados agregados - UTILIZAÇÃO REAL DOS PCs
+            // Usando uma abordagem recursiva para gerar todas as datas necessárias
             const statsQuery = `
+                WITH RECURSIVE date_range AS (
+                    SELECT ? as data_dia
+                    UNION ALL
+                    SELECT DATE_ADD(data_dia, INTERVAL ${intervalo} DAY)
+                    FROM date_range
+                    WHERE DATE_ADD(data_dia, INTERVAL ${intervalo} DAY) <= CURDATE()
+                )
                 SELECT
                     dia.data_dia as data,
                     COUNT(DISTINCT CASE WHEN a.data_inicio <= dia.data_dia
@@ -156,21 +179,10 @@ export async function GET(request) {
                     SUM(CASE WHEN a.data_inicio <= dia.data_dia
                             AND DATE_ADD(a.data_inicio, INTERVAL a.dias_necessarios - 1 DAY) >= dia.data_dia
                             THEN 1 ELSE 0 END) as total_dias_reservados
-                FROM (
-                    SELECT DATE_SUB(CURDATE(), INTERVAL n DAY) as data_dia
-                    FROM (
-                        SELECT 0 as n UNION ALL SELECT 1 UNION ALL SELECT 2 UNION ALL SELECT 3 UNION ALL SELECT 4 UNION ALL
-                        SELECT 5 UNION ALL SELECT 6 UNION ALL SELECT 7 UNION ALL SELECT 8 UNION ALL SELECT 9 UNION ALL
-                        SELECT 10 UNION ALL SELECT 11 UNION ALL SELECT 12 UNION ALL SELECT 13 UNION ALL SELECT 14 UNION ALL
-                        SELECT 15 UNION ALL SELECT 16 UNION ALL SELECT 17 UNION ALL SELECT 18 UNION ALL SELECT 19 UNION ALL
-                        SELECT 20 UNION ALL SELECT 21 UNION ALL SELECT 22 UNION ALL SELECT 23 UNION ALL SELECT 24 UNION ALL
-                        SELECT 25 UNION ALL SELECT 26 UNION ALL SELECT 27 UNION ALL SELECT 28 UNION ALL SELECT 29
-                    ) numbers
-                ) dia
+                FROM date_range dia
                 LEFT JOIN agendamentos a ON a.ativo = 1
                     AND a.data_inicio <= dia.data_dia
                     AND DATE_ADD(a.data_inicio, INTERVAL a.dias_necessarios - 1 DAY) >= dia.data_dia
-                WHERE dia.data_dia >= ?
                 GROUP BY dia.data_dia
                 ORDER BY dia.data_dia ASC;
             `;
@@ -553,47 +565,61 @@ function generateMockStatsData(periodo) {
     const hoje = new Date();
     let dataInicio;
     let numDias;
+    let intervalo;
 
     switch (periodo) {
         case 'semana':
             dataInicio = new Date(hoje);
             dataInicio.setDate(hoje.getDate() - 7);
             numDias = 7;
+            intervalo = 1; // Diário
             break;
         case 'mes':
             dataInicio = new Date(hoje);
             dataInicio.setMonth(hoje.getMonth() - 1);
             numDias = 30;
+            intervalo = 1; // Diário
             break;
         case 'semestre':
             dataInicio = new Date(hoje);
             dataInicio.setMonth(hoje.getMonth() - 6);
             numDias = 180;
+            intervalo = 7; // Semanal (aprox. 26 pontos)
             break;
         case 'ano':
             dataInicio = new Date(hoje);
             dataInicio.setFullYear(hoje.getFullYear() - 1);
             numDias = 365;
+            intervalo = 15; // Quinzenal (aprox. 24 pontos)
             break;
         default:
             dataInicio = new Date(hoje);
             dataInicio.setMonth(hoje.getMonth() - 6);
             numDias = 180;
+            intervalo = 7;
     }
 
     const mockStats = [];
-    for (let i = 0; i < Math.min(numDias, 30); i++) { // Limitar a 30 dias para não sobrecarregar
+    // Gerar dados agregados com o intervalo correto
+    for (let i = 0; i <= numDias; i += intervalo) {
         const data = new Date(dataInicio);
-        data.setDate(data.getDate() + i);
+        data.setDate(dataInicio.getDate() + i);
+
+        // Não adicionar datas futuras
+        if (data > hoje) break;
+
+        // Multiplicador para simular mais atividade em períodos maiores
+        const multiplicador = periodo === 'semana' ? 1 : periodo === 'mes' ? 1.5 : periodo === 'semestre' ? 2 : 2.5;
+
         mockStats.push({
             data: data.toISOString().split('T')[0],
-            total_reservas: Math.floor(Math.random() * 8) + 1,
+            total_reservas_ativas: Math.floor(Math.random() * 8 * multiplicador) + 1,
             pcs_distintos: Math.floor(Math.random() * 4) + 1,
-            total_dias_reservados: Math.floor(Math.random() * 15) + 1
+            total_dias_reservados: Math.floor(Math.random() * 15 * multiplicador) + 1
         });
     }
 
-    const totalReservas = mockStats.reduce((sum, item) => sum + item.total_reservas, 0);
+    const totalReservas = mockStats.reduce((sum, item) => sum + item.total_reservas_ativas, 0);
     const totalDias = mockStats.reduce((sum, item) => sum + item.total_dias_reservados, 0);
     const mediaDias = totalDias / totalReservas || 0;
     const pcsUsados = Math.max(...mockStats.map(item => item.pcs_distintos));
