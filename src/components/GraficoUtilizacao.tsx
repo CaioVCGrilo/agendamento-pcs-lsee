@@ -6,7 +6,6 @@ import {
     YAxis,
     CartesianGrid,
     Tooltip,
-    Legend,
     ResponsiveContainer
 } from 'recharts';
 import './GraficoUtilizacao.css';
@@ -397,10 +396,6 @@ const GraficoUtilizacao: React.FC = () => {
                                 return [value, name];
                             }}
                             labelFormatter={(label: string) => `Data: ${label}`}
-                        />
-                        <Legend
-                            wrapperStyle={{ paddingTop: '20px' }}
-                            iconType="circle"
                         />
                         <Area
                             type="monotone"
