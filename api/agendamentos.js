@@ -192,9 +192,16 @@ export async function GET(request) {
             const [pcPopular] = await pool.execute(pcPopularQuery, [dataInicioISO]);
             console.log('Resultado PC popular:', pcPopular);
 
+            // Garantir que todos os valores sejam números válidos
+            const summaryData = summary[0] || {};
             const responseData = {
                 stats,
-                summary: summary[0] || { total_reservas: 0, total_dias: 0, media_dias: 0, total_pcs_usados: 0 },
+                summary: {
+                    total_reservas: summaryData.total_reservas || 0,
+                    total_dias: summaryData.total_dias || 0,
+                    media_dias: summaryData.media_dias || 0,
+                    total_pcs_usados: summaryData.total_pcs_usados || 0
+                },
                 pcMaisUsado: pcPopular[0] || null,
                 periodo,
                 dataInicio: dataInicioISO

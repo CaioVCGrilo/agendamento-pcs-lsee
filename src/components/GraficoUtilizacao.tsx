@@ -48,21 +48,34 @@ const GraficoUtilizacao: React.FC = () => {
     const [loading, setLoading] = useState(true);
     const [statsData, setStatsData] = useState<StatsResponse | null>(null);
     const [tipoGrafico, setTipoGrafico] = useState<'linha' | 'area'>('area');
+    const [error, setError] = useState<string | null>(null);
 
     const fetchStatistics = useCallback(async () => {
         setLoading(true);
+        setError(null);
         try {
             const response = await fetch(`/api/agendamentos?stats=true&periodo=${periodo}`);
             if (response.ok) {
                 const data = await response.json();
-                setStatsData(data);
+                console.log('Dados recebidos da API:', data);
+
+                // Validar estrutura dos dados
+                if (!data || !data.summary) {
+                    console.error('Dados inválidos recebidos da API');
+                    setStatsData(generateMockStatsData(periodo));
+                } else {
+                    setStatsData(data);
+                }
             } else {
                 console.error("Erro na resposta da API:", response.status, response.statusText);
+                const errorText = await response.text();
+                console.error("Erro detalhado:", errorText);
                 // Fallback para dados mock
                 setStatsData(generateMockStatsData(periodo));
             }
         } catch (error) {
             console.error("Erro ao carregar estatísticas:", error);
+            setError('Erro ao carregar dados. Usando dados de exemplo.');
             // Fallback para dados mock quando não há API
             setStatsData(generateMockStatsData(periodo));
         } finally {
@@ -95,7 +108,7 @@ const GraficoUtilizacao: React.FC = () => {
         );
     }
 
-    if (!statsData || statsData.stats.length === 0) {
+    if (!statsData || !statsData.stats || statsData.stats.length === 0) {
         return (
             <div className="grafico-container">
                 <div className="grafico-header">
@@ -120,15 +133,28 @@ const GraficoUtilizacao: React.FC = () => {
         );
     }
 
+    // Garantir que os dados estão válidos
     const chartData = statsData.stats.map(item => ({
         data: formatarData(item.data),
-        reservas: item.total_reservas,
-        pcsDistintos: item.pcs_distintos,
-        diasReservados: item.total_dias_reservados
+        reservas: item.total_reservas || 0,
+        pcsDistintos: item.pcs_distintos || 0,
+        diasReservados: item.total_dias_reservados || 0
     }));
 
     return (
         <div className="grafico-container">
+            {error && (
+                <div style={{
+                    padding: '10px',
+                    backgroundColor: '#fef3c7',
+                    border: '1px solid #fbbf24',
+                    borderRadius: '8px',
+                    marginBottom: '1rem',
+                    color: '#92400e'
+                }}>
+                    ⚠️ {error}
+                </div>
+            )}
             <div className="grafico-header">
                 <h2 className="grafico-title">📊 Estatísticas de Utilização dos Recursos</h2>
                 <div className="grafico-controls">
@@ -164,21 +190,21 @@ const GraficoUtilizacao: React.FC = () => {
                     <div className="stat-icon">📅</div>
                     <div className="stat-content">
                         <span className="stat-label">Total de Reservas</span>
-                        <span className="stat-value">{statsData.summary.total_reservas}</span>
+                        <span className="stat-value">{statsData.summary?.total_reservas || 0}</span>
                     </div>
                 </div>
                 <div className="stat-card">
                     <div className="stat-icon">⏱️</div>
                     <div className="stat-content">
                         <span className="stat-label">Dias Totais</span>
-                        <span className="stat-value">{statsData.summary.total_dias}</span>
+                        <span className="stat-value">{statsData.summary?.total_dias || 0}</span>
                     </div>
                 </div>
                 <div className="stat-card">
                     <div className="stat-icon">📊</div>
                     <div className="stat-content">
                         <span className="stat-label">Média de Dias</span>
-                        <span className="stat-value">{statsData.summary.media_dias.toFixed(1)}</span>
+                        <span className="stat-value">{(statsData.summary?.media_dias || 0).toFixed(1)}</span>
                     </div>
                 </div>
                 {statsData.pcMaisUsado && (
@@ -186,8 +212,8 @@ const GraficoUtilizacao: React.FC = () => {
                         <div className="stat-icon">🏆</div>
                         <div className="stat-content">
                             <span className="stat-label">PC Mais Usado</span>
-                            <span className="stat-value">{statsData.pcMaisUsado.pc_numero}</span>
-                            <span className="stat-detail">{statsData.pcMaisUsado.num_reservas} reservas</span>
+                            <span className="stat-value">{statsData.pcMaisUsado.pc_numero || 'N/A'}</span>
+                            <span className="stat-detail">{statsData.pcMaisUsado.num_reservas || 0} reservas</span>
                         </div>
                     </div>
                 )}
@@ -304,7 +330,7 @@ const generateMockStatsData = (periodo: Periodo): StatsResponse => {
     // Gera dados mock com base no período selecionado
     const hoje = new Date();
     const stats: StatData[] = [];
-    const diasNoPeriodo = periodo === 'semana' ? 7 : periodo === 'mes' ? 30 : periodo === 'semestre' ? 180 : 365;
+    const diasNoPeriodo = periodo === 'semana' ? 7 : periodo === 'mes' ? 30 : periodo === 'semestre' ? 30 : 30; // Limitar a 30 dias
 
     for (let i = diasNoPeriodo - 1; i >= 0; i--) {
         const data = new Date(hoje);
@@ -312,31 +338,31 @@ const generateMockStatsData = (periodo: Periodo): StatsResponse => {
 
         stats.push({
             data: data.toISOString().split('T')[0],
-            total_reservas: Math.floor(Math.random() * 10),
-            pcs_distintos: Math.floor(Math.random() * 5) + 1,
-            total_dias_reservados: Math.floor(Math.random() * 20)
+            total_reservas: Math.floor(Math.random() * 8) + 1,
+            pcs_distintos: Math.floor(Math.random() * 4) + 1,
+            total_dias_reservados: Math.floor(Math.random() * 15) + 5
         });
     }
 
-    const totalReservas = stats.reduce((acc, item) => acc + item.total_reservas, 0);
-    const totalDias = stats.reduce((acc, item) => acc + item.total_dias_reservados, 0);
-    const mediaDias = totalDias / diasNoPeriodo;
-    const totalPcsUsados = new Set(stats.flatMap(item => Array(item.pcs_distintos).fill(item.data))).size;
+    const totalReservas = stats.reduce((acc, item) => acc + (item.total_reservas || 0), 0);
+    const totalDias = stats.reduce((acc, item) => acc + (item.total_dias_reservados || 0), 0);
+    const mediaDias = totalReservas > 0 ? totalDias / totalReservas : 0;
+    const totalPcsUsados = 5; // Fixo para mock
 
     return {
         stats,
         summary: {
-            total_reservas: totalReservas,
-            total_dias: totalDias,
-            media_dias: mediaDias,
-            total_pcs_usados: totalPcsUsados
+            total_reservas: totalReservas || 0,
+            total_dias: totalDias || 0,
+            media_dias: parseFloat(mediaDias.toFixed(1)) || 0,
+            total_pcs_usados: totalPcsUsados || 0
         },
         pcMaisUsado: {
-            pc_numero: `PC ${Math.floor(Math.random() * 1000)} (RTDS)`,
-            num_reservas: Math.floor(Math.random() * totalReservas),
-            dias_totais: Math.floor(Math.random() * totalDias)
+            pc_numero: 'PC 076 (RTDS)',
+            num_reservas: Math.floor(totalReservas * 0.4) || 1,
+            dias_totais: Math.floor(totalDias * 0.4) || 1
         },
         periodo,
-        dataInicio: stats[0].data
+        dataInicio: stats[0]?.data || hoje.toISOString().split('T')[0]
     };
 };
