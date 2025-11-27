@@ -43,6 +43,47 @@ interface StatsResponse {
 
 type Periodo = 'semana' | 'mes' | 'semestre' | 'ano';
 
+// Função para gerar dados mock - MOVIDA PARA CIMA
+const generateMockStatsData = (periodo: Periodo): StatsResponse => {
+    const hoje = new Date();
+    const stats: StatData[] = [];
+    const diasNoPeriodo = periodo === 'semana' ? 7 : periodo === 'mes' ? 30 : periodo === 'semestre' ? 30 : 30;
+
+    for (let i = diasNoPeriodo - 1; i >= 0; i--) {
+        const data = new Date(hoje);
+        data.setDate(hoje.getDate() - i);
+
+        stats.push({
+            data: data.toISOString().split('T')[0],
+            total_reservas: Math.floor(Math.random() * 8) + 1,
+            pcs_distintos: Math.floor(Math.random() * 4) + 1,
+            total_dias_reservados: Math.floor(Math.random() * 15) + 5
+        });
+    }
+
+    const totalReservas = stats.reduce((acc, item) => acc + (item.total_reservas || 0), 0);
+    const totalDias = stats.reduce((acc, item) => acc + (item.total_dias_reservados || 0), 0);
+    const mediaDias = totalReservas > 0 ? totalDias / totalReservas : 0;
+    const totalPcsUsados = 5;
+
+    return {
+        stats,
+        summary: {
+            total_reservas: totalReservas || 0,
+            total_dias: totalDias || 0,
+            media_dias: parseFloat(mediaDias.toFixed(1)) || 0,
+            total_pcs_usados: totalPcsUsados || 0
+        },
+        pcMaisUsado: {
+            pc_numero: 'PC 076 (RTDS)',
+            num_reservas: Math.floor(totalReservas * 0.4) || 1,
+            dias_totais: Math.floor(totalDias * 0.4) || 1
+        },
+        periodo,
+        dataInicio: stats[0]?.data || hoje.toISOString().split('T')[0]
+    };
+};
+
 const GraficoUtilizacao: React.FC = () => {
     const [periodo, setPeriodo] = useState<Periodo>('semestre');
     const [loading, setLoading] = useState(true);
@@ -326,43 +367,3 @@ const GraficoUtilizacao: React.FC = () => {
 
 export default GraficoUtilizacao;
 
-const generateMockStatsData = (periodo: Periodo): StatsResponse => {
-    // Gera dados mock com base no período selecionado
-    const hoje = new Date();
-    const stats: StatData[] = [];
-    const diasNoPeriodo = periodo === 'semana' ? 7 : periodo === 'mes' ? 30 : periodo === 'semestre' ? 30 : 30; // Limitar a 30 dias
-
-    for (let i = diasNoPeriodo - 1; i >= 0; i--) {
-        const data = new Date(hoje);
-        data.setDate(hoje.getDate() - i);
-
-        stats.push({
-            data: data.toISOString().split('T')[0],
-            total_reservas: Math.floor(Math.random() * 8) + 1,
-            pcs_distintos: Math.floor(Math.random() * 4) + 1,
-            total_dias_reservados: Math.floor(Math.random() * 15) + 5
-        });
-    }
-
-    const totalReservas = stats.reduce((acc, item) => acc + (item.total_reservas || 0), 0);
-    const totalDias = stats.reduce((acc, item) => acc + (item.total_dias_reservados || 0), 0);
-    const mediaDias = totalReservas > 0 ? totalDias / totalReservas : 0;
-    const totalPcsUsados = 5; // Fixo para mock
-
-    return {
-        stats,
-        summary: {
-            total_reservas: totalReservas || 0,
-            total_dias: totalDias || 0,
-            media_dias: parseFloat(mediaDias.toFixed(1)) || 0,
-            total_pcs_usados: totalPcsUsados || 0
-        },
-        pcMaisUsado: {
-            pc_numero: 'PC 076 (RTDS)',
-            num_reservas: Math.floor(totalReservas * 0.4) || 1,
-            dias_totais: Math.floor(totalDias * 0.4) || 1
-        },
-        periodo,
-        dataInicio: stats[0]?.data || hoje.toISOString().split('T')[0]
-    };
-};

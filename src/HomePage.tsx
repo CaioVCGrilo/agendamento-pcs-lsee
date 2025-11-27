@@ -280,7 +280,9 @@ export default function HomePage() {
                         </div>
                     )}
 
-                    <GraficoUtilizacao />
+                    <ErrorBoundary>
+                        <GraficoUtilizacao />
+                    </ErrorBoundary>
                 </div>
             </div>
             <footer className="footer">
@@ -288,4 +290,55 @@ export default function HomePage() {
             </footer>
         </main>
     );
+}
+
+// Error Boundary para capturar erros do gráfico
+class ErrorBoundary extends React.Component<
+    { children: React.ReactNode },
+    { hasError: boolean; error: Error | null }
+> {
+    constructor(props: { children: React.ReactNode }) {
+        super(props);
+        this.state = { hasError: false, error: null };
+    }
+
+    static getDerivedStateFromError(error: Error) {
+        return { hasError: true, error };
+    }
+
+    componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+        console.error('Erro capturado pelo Error Boundary:', error, errorInfo);
+    }
+
+    render() {
+        if (this.state.hasError) {
+            return (
+                <div style={{
+                    padding: '2rem',
+                    margin: '2rem 0',
+                    backgroundColor: '#fee2e2',
+                    border: '1px solid #ef4444',
+                    borderRadius: '8px',
+                    color: '#991b1b'
+                }}>
+                    <h3>⚠️ Erro ao carregar gráfico de estatísticas</h3>
+                    <p>O gráfico não pôde ser carregado, mas o resto do sistema continua funcionando normalmente.</p>
+                    <details style={{ marginTop: '1rem' }}>
+                        <summary style={{ cursor: 'pointer', fontWeight: 'bold' }}>Detalhes do erro</summary>
+                        <pre style={{
+                            marginTop: '0.5rem',
+                            padding: '1rem',
+                            backgroundColor: '#fef2f2',
+                            overflow: 'auto',
+                            fontSize: '0.875rem'
+                        }}>
+                            {this.state.error?.toString()}
+                        </pre>
+                    </details>
+                </div>
+            );
+        }
+
+        return this.props.children;
+    }
 }
