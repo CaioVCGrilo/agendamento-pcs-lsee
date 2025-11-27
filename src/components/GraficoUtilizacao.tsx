@@ -58,37 +58,13 @@ const GraficoUtilizacao: React.FC = () => {
                 setStatsData(data);
             } else {
                 console.error("Erro na resposta da API:", response.status, response.statusText);
-                // Dados mock para desenvolvimento
-                setStatsData({
-                    stats: [
-                        { data: '2025-01-01', total_reservas: 3, pcs_distintos: 2, total_dias_reservados: 9 },
-                        { data: '2025-01-02', total_reservas: 5, pcs_distintos: 3, total_dias_reservados: 12 },
-                        { data: '2025-01-03', total_reservas: 2, pcs_distintos: 2, total_dias_reservados: 6 },
-                        { data: '2025-01-04', total_reservas: 4, pcs_distintos: 3, total_dias_reservados: 15 },
-                        { data: '2025-01-05', total_reservas: 6, pcs_distintos: 4, total_dias_reservados: 18 },
-                    ],
-                    summary: { total_reservas: 20, total_dias: 60, media_dias: 3.0, total_pcs_usados: 5 },
-                    pcMaisUsado: { pc_numero: 'PC 076 (RTDS)', num_reservas: 8, dias_totais: 24 },
-                    periodo,
-                    dataInicio: '2025-01-01'
-                });
+                // Fallback para dados mock
+                setStatsData(generateMockStatsData(periodo));
             }
         } catch (error) {
             console.error("Erro ao carregar estatísticas:", error);
-            // Dados mock para desenvolvimento quando não há API
-            setStatsData({
-                stats: [
-                    { data: '2025-01-01', total_reservas: 3, pcs_distintos: 2, total_dias_reservados: 9 },
-                    { data: '2025-01-02', total_reservas: 5, pcs_distintos: 3, total_dias_reservados: 12 },
-                    { data: '2025-01-03', total_reservas: 2, pcs_distintos: 2, total_dias_reservados: 6 },
-                    { data: '2025-01-04', total_reservas: 4, pcs_distintos: 3, total_dias_reservados: 15 },
-                    { data: '2025-01-05', total_reservas: 6, pcs_distintos: 4, total_dias_reservados: 18 },
-                ],
-                summary: { total_reservas: 20, total_dias: 60, media_dias: 3.0, total_pcs_usados: 5 },
-                pcMaisUsado: { pc_numero: 'PC 076 (RTDS)', num_reservas: 8, dias_totais: 24 },
-                periodo,
-                dataInicio: '2025-01-01'
-            });
+            // Fallback para dados mock quando não há API
+            setStatsData(generateMockStatsData(periodo));
         } finally {
             setLoading(false);
         }
@@ -323,3 +299,44 @@ const GraficoUtilizacao: React.FC = () => {
 };
 
 export default GraficoUtilizacao;
+
+const generateMockStatsData = (periodo: Periodo): StatsResponse => {
+    // Gera dados mock com base no período selecionado
+    const hoje = new Date();
+    const stats: StatData[] = [];
+    const diasNoPeriodo = periodo === 'semana' ? 7 : periodo === 'mes' ? 30 : periodo === 'semestre' ? 180 : 365;
+
+    for (let i = diasNoPeriodo - 1; i >= 0; i--) {
+        const data = new Date(hoje);
+        data.setDate(hoje.getDate() - i);
+
+        stats.push({
+            data: data.toISOString().split('T')[0],
+            total_reservas: Math.floor(Math.random() * 10),
+            pcs_distintos: Math.floor(Math.random() * 5) + 1,
+            total_dias_reservados: Math.floor(Math.random() * 20)
+        });
+    }
+
+    const totalReservas = stats.reduce((acc, item) => acc + item.total_reservas, 0);
+    const totalDias = stats.reduce((acc, item) => acc + item.total_dias_reservados, 0);
+    const mediaDias = totalDias / diasNoPeriodo;
+    const totalPcsUsados = new Set(stats.flatMap(item => Array(item.pcs_distintos).fill(item.data))).size;
+
+    return {
+        stats,
+        summary: {
+            total_reservas: totalReservas,
+            total_dias: totalDias,
+            media_dias: mediaDias,
+            total_pcs_usados: totalPcsUsados
+        },
+        pcMaisUsado: {
+            pc_numero: `PC ${Math.floor(Math.random() * 1000)} (RTDS)`,
+            num_reservas: Math.floor(Math.random() * totalReservas),
+            dias_totais: Math.floor(Math.random() * totalDias)
+        },
+        periodo,
+        dataInicio: stats[0].data
+    };
+};

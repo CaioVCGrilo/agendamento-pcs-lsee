@@ -49,9 +49,24 @@ async function initializeDatabase() {
 initializeDatabase();
 
 function checkDbConnection() {
-    if (!process.env.MYSQL_HOST) {
+    console.log('Verificando variáveis de ambiente:');
+    console.log('MYSQL_HOST:', process.env.MYSQL_HOST ? 'Configurado' : 'NÃO CONFIGURADO');
+    console.log('MYSQL_USER:', process.env.MYSQL_USER ? 'Configurado' : 'NÃO CONFIGURADO');
+    console.log('MYSQL_PASSWORD:', process.env.MYSQL_PASSWORD ? 'Configurado' : 'NÃO CONFIGURADO');
+    console.log('MYSQL_DATABASE:', process.env.MYSQL_DATABASE ? 'Configurado' : 'NÃO CONFIGURADO');
+
+    if (!process.env.MYSQL_HOST || !process.env.MYSQL_USER || !process.env.MYSQL_PASSWORD || !process.env.MYSQL_DATABASE) {
+        console.error('Variáveis de ambiente do MySQL não configuradas!');
         return NextResponse.json(
-            { error: 'Serviço indisponível. Variáveis de ambiente do MySQL não configuradas.' },
+            {
+                error: 'Serviço indisponível. Variáveis de ambiente do MySQL não configuradas.',
+                details: {
+                    MYSQL_HOST: !!process.env.MYSQL_HOST,
+                    MYSQL_USER: !!process.env.MYSQL_USER,
+                    MYSQL_PASSWORD: !!process.env.MYSQL_PASSWORD,
+                    MYSQL_DATABASE: !!process.env.MYSQL_DATABASE
+                }
+            },
             { status: 503 }
         );
     }
@@ -71,11 +86,33 @@ export async function GET(request) {
         const { searchParams } = new URL(request.url);
         console.log('Parâmetros:', Object.fromEntries(searchParams));
 
+        // Endpoint de teste
+        if (searchParams.has('test')) {
+            console.log('Executando teste de API...');
+            return NextResponse.json({
+                status: 'API funcionando',
+                timestamp: new Date().toISOString(),
+                environment: {
+                    MYSQL_HOST: !!process.env.MYSQL_HOST,
+                    MYSQL_USER: !!process.env.MYSQL_USER,
+                    MYSQL_PASSWORD: !!process.env.MYSQL_PASSWORD,
+                    MYSQL_DATABASE: !!process.env.MYSQL_DATABASE
+                }
+            }, { status: 200 });
+        }
+
         // Se tem parâmetro stats, retorna estatísticas
         if (searchParams.has('stats')) {
             console.log('Processando estatísticas...');
             const periodo = searchParams.get('periodo') || 'semestre';
             console.log('Período:', periodo);
+
+            // Se for desenvolvimento ou teste, retornar dados mock
+            if (process.env.NODE_ENV !== 'production' || searchParams.has('mock')) {
+                console.log('Retornando dados mock para desenvolvimento...');
+                const mockData = generateMockStatsData(periodo);
+                return NextResponse.json(mockData, { status: 200 });
+            }
 
             let dataInicio;
             const hoje = new Date();
@@ -220,7 +257,28 @@ export async function GET(request) {
 
     } catch (error) {
         console.error('Erro ao buscar dados:', error);
-        return NextResponse.json({ error: 'Erro ao buscar dados do banco de dados.' }, { status: 503 });
+        console.error('Stack trace:', error.stack);
+        console.error('Error message:', error.message);
+        console.error('Error code:', error.code);
+
+        // Tentar testar a conexão
+        try {
+            console.log('Testando conexão com o banco...');
+            const testConnection = await pool.getConnection();
+            console.log('Conexão com banco OK');
+            testConnection.release();
+        } catch (dbError) {
+            console.error('Erro na conexão com banco:', dbError.message);
+        }
+
+        return NextResponse.json({
+            error: 'Erro ao buscar dados do banco de dados.',
+            details: {
+                message: error.message,
+                code: error.code,
+                sqlState: error.sqlState
+            }
+        }, { status: 503 });
     }
 }
 
@@ -462,4 +520,72 @@ export async function PATCH(request) {
         console.error('Erro ao processar extensão:', error);
         return NextResponse.json({ error: 'Erro de infraestrutura ao estender o agendamento.' }, { status: 503 });
     }
+}
+
+// Função para gerar dados mock de estatísticas
+function generateMockStatsData(periodo) {
+    const hoje = new Date();
+    let dataInicio;
+    let numDias;
+
+    switch (periodo) {
+        case 'semana':
+            dataInicio = new Date(hoje);
+            dataInicio.setDate(hoje.getDate() - 7);
+            numDias = 7;
+            break;
+        case 'mes':
+            dataInicio = new Date(hoje);
+            dataInicio.setMonth(hoje.getMonth() - 1);
+            numDias = 30;
+            break;
+        case 'semestre':
+            dataInicio = new Date(hoje);
+            dataInicio.setMonth(hoje.getMonth() - 6);
+            numDias = 180;
+            break;
+        case 'ano':
+            dataInicio = new Date(hoje);
+            dataInicio.setFullYear(hoje.getFullYear() - 1);
+            numDias = 365;
+            break;
+        default:
+            dataInicio = new Date(hoje);
+            dataInicio.setMonth(hoje.getMonth() - 6);
+            numDias = 180;
+    }
+
+    const mockStats = [];
+    for (let i = 0; i < Math.min(numDias, 30); i++) { // Limitar a 30 dias para não sobrecarregar
+        const data = new Date(dataInicio);
+        data.setDate(data.getDate() + i);
+        mockStats.push({
+            data: data.toISOString().split('T')[0],
+            total_reservas: Math.floor(Math.random() * 8) + 1,
+            pcs_distintos: Math.floor(Math.random() * 4) + 1,
+            total_dias_reservados: Math.floor(Math.random() * 15) + 1
+        });
+    }
+
+    const totalReservas = mockStats.reduce((sum, item) => sum + item.total_reservas, 0);
+    const totalDias = mockStats.reduce((sum, item) => sum + item.total_dias_reservados, 0);
+    const mediaDias = totalDias / totalReservas || 0;
+    const pcsUsados = Math.max(...mockStats.map(item => item.pcs_distintos));
+
+    return {
+        stats: mockStats,
+        summary: {
+            total_reservas: totalReservas,
+            total_dias: totalDias,
+            media_dias: parseFloat(mediaDias.toFixed(1)),
+            total_pcs_usados: pcsUsados
+        },
+        pcMaisUsado: {
+            pc_numero: 'PC 076 (RTDS)',
+            num_reservas: Math.floor(totalReservas * 0.4),
+            dias_totais: Math.floor(totalDias * 0.4)
+        },
+        periodo,
+        dataInicio: dataInicio.toISOString().split('T')[0]
+    };
 }
