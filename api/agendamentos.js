@@ -59,18 +59,27 @@ function checkDbConnection() {
 }
 
 export async function GET(request) {
+    console.log('API chamada:', request.url);
+
     const connectionError = checkDbConnection();
-    if (connectionError) return connectionError;
+    if (connectionError) {
+        console.log('Erro de conexão com DB');
+        return connectionError;
+    }
 
     try {
         const { searchParams } = new URL(request.url);
+        console.log('Parâmetros:', Object.fromEntries(searchParams));
 
         // Se tem parâmetro stats, retorna estatísticas
         if (searchParams.has('stats')) {
+            console.log('Processando estatísticas...');
             const periodo = searchParams.get('periodo') || 'semestre';
+            console.log('Período:', periodo);
 
             let dataInicio;
             const hoje = new Date();
+            console.log('Data atual:', hoje.toISOString());
 
             switch (periodo) {
                 case 'semana':
@@ -95,6 +104,7 @@ export async function GET(request) {
             }
 
             const dataInicioISO = dataInicio.toISOString().split('T')[0];
+            console.log('Data início filtro:', dataInicioISO);
 
             // Query para obter dados agregados por dia
             const statsQuery = `
@@ -109,7 +119,9 @@ export async function GET(request) {
                 ORDER BY data_inicio ASC;
             `;
 
+            console.log('Executando query de estatísticas...');
             const [stats] = await pool.execute(statsQuery, [dataInicioISO]);
+            console.log('Resultado stats:', stats);
 
             // Query para estatísticas gerais
             const summaryQuery = `
@@ -122,7 +134,9 @@ export async function GET(request) {
                 WHERE data_inicio >= ?;
             `;
 
+            console.log('Executando query de resumo...');
             const [summary] = await pool.execute(summaryQuery, [dataInicioISO]);
+            console.log('Resultado summary:', summary);
 
             // Query para obter o PC mais utilizado
             const pcPopularQuery = `
@@ -137,15 +151,20 @@ export async function GET(request) {
                 LIMIT 1;
             `;
 
+            console.log('Executando query de PC popular...');
             const [pcPopular] = await pool.execute(pcPopularQuery, [dataInicioISO]);
+            console.log('Resultado PC popular:', pcPopular);
 
-            return NextResponse.json({
+            const responseData = {
                 stats,
                 summary: summary[0] || { total_reservas: 0, total_dias: 0, media_dias: 0, total_pcs_usados: 0 },
                 pcMaisUsado: pcPopular[0] || null,
                 periodo,
                 dataInicio: dataInicioISO
-            }, { status: 200 });
+            };
+
+            console.log('Retornando dados:', responseData);
+            return NextResponse.json(responseData, { status: 200 });
         }
 
         // Se tem parâmetros dataInicial e diasNecessarios, retorna PCs disponíveis
